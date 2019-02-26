@@ -160,17 +160,17 @@ not_a_bot
 # URLLIST=$(lynx -useragent "${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
 
-# This list can be trimmed down further by removing certain strings (e.g. if you don't want news from the "panorama" or "sport" sections)
-# Examples:
-# URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/panorama/" )
-# URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/sport/" )
-
 # This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
 URLLIST=$(lynx -useragent "$USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
 # Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
 # (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
 # URLLIST=$(lynx -useragent "${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+
+# This list can be trimmed down further by removing certain strings (e.g. if you don't want news from the "panorama" or "sport" sections)
+# Examples:
+URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/panorama/" )
+URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/sport/" )
 
 BACKOFF=0
 
