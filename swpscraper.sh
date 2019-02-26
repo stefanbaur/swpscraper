@@ -55,7 +55,7 @@ function tweet_and_update() {
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
-		TITLE=$(wget -q -O - $SINGLEURL | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?():-]//g')
+		TITLE=$(wget -q -O - $SINGLEURL | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?():-]//g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
