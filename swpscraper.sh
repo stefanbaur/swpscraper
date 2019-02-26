@@ -109,7 +109,13 @@ function tweet_and_update() {
 		sleep 1 # make sure timestamps are always at least 1s apart
 		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 	fi
-	return $BACKOFF
+
+	if [ $BACKOFF -eq 1 ]; then
+		echo "Setting BACKOFF."
+		return 1
+	else
+		return 0
+	fi
 }
 
 
@@ -183,7 +189,7 @@ for SINGLEURL in $URLLIST; do
 		tweet_and_update $SINGLEURL $BACKOFF $PRIMETABLE 
 	fi
 done
-if [ $backoff -eq 1 ]; then
+if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
 	exit 1
 else
