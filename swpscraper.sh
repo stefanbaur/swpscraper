@@ -84,7 +84,7 @@ function tweet_and_update() {
 				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
 				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
 				if [ "$RETCODE" != "200" ] ; then
-					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 					BACKOFF=1
 				else
