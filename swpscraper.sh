@@ -46,8 +46,8 @@ function not_a_bot {
 function tweet_and_update() {
 
 	local SINGLEURL=$1
-	local PRIMETABLE=$2
-	local BACKOFF=0
+	local BACKOFF=$2
+	local PRIMETABLE=$3
 
 	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "true"')" ]; then
 
@@ -87,6 +87,9 @@ function tweet_and_update() {
 					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 					BACKOFF=1
+				else
+					# Add entry to table
+					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 				fi
 			else
 				sleep 1
@@ -101,8 +104,6 @@ function tweet_and_update() {
 
 		fi
 
-		# Add entry to table
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 	else
 		# This should update the timestamp so the entry is marked as recent and won't get purged
 		sleep 1 # make sure timestamps are always at least 1s apart
@@ -171,14 +172,21 @@ URLLIST=$(lynx -useragent "$USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]" 
 # (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
 # URLLIST=$(lynx -useragent "${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
+BACKOFF=0
+
 for SINGLEURL in $URLLIST; do
 
 	# IMPORTANT: String must be filtered for valid chars to block SQL injection and shell injection
 	SINGLEURL=$(echo $SINGLEURL | tr -d -c 'a-zA-Z0-9_/.:-') # SWP only uses this character subset in their URLs
 
 	if [ -n "$SINGLEURL" ] ; then
-		tweet_and_update $SINGLEURL $PRIMETABLE
+		tweet_and_update $SINGLEURL $BACKOFF $PRIMETABLE 
 	fi
 done
-echo "Done."
-exit 0
+if [ $backoff -eq 1 ]; then
+	echo "Backed off due to errors."
+	exit 1
+else
+	echo "Done."
+	exit 0
+fi
