@@ -139,6 +139,7 @@ else
 	URLLIST=$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp DESC')
 	BACKOFF=0
 	for SINGLEURL in $URLLIST; do
+		not_a_bot
 		tweet_and_update $SINGLEURL $BACKOFF || BACKOFF=1
 	done
 	echo "Done checking for postponed tweets."
