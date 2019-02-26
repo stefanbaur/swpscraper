@@ -192,7 +192,9 @@ for SINGLEURL in $URLLIST; do
 	SINGLEURL=$(echo $SINGLEURL | tr -d -c 'a-zA-Z0-9_/.:-') # SWP only uses this character subset in their URLs
 
 	if [ -n "$SINGLEURL" ] ; then
-		tweet_and_update $SINGLEURL $BACKOFF $PRIMETABLE 
+		if ! tweet_and_update $SINGLEURL $BACKOFF $PRIMETABLE ; then
+			BACKOFF=1
+		fi
 	fi
 done
 if [ $BACKOFF -eq 1 ]; then
