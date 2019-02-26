@@ -101,6 +101,8 @@ function tweet_and_update() {
 
 			echo "priming URL table with '$SINGLEURL'"
 			sleep 1 # this is so every entry has a unique timestamp
+			# Add entry to table
+			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 
 		fi
 
