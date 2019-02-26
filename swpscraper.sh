@@ -63,8 +63,8 @@ function tweet_and_update() {
 
 		not_a_bot
 
-			# IMPORTANT: Update times should be randomized within a 60-120 second interval (to work around twitter's bot/abuse detection and API rate limiting)
-			RANDDELAY="$[ ( $RANDOM % 60 )  + 61 ]s"
+			# IMPORTANT: Update times should be randomized within a 60-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
+			RANDDELAY="$[ ( $RANDOM % 120 )  + 61 ]s"
 
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# a simpler method might just check for size <= (280-24), as 23 chars + 1 blank is the current shorturl size enforced by twitter
