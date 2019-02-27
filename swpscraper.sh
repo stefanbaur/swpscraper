@@ -49,7 +49,12 @@ function tweet_and_update() {
 	local BACKOFF=$2
 	local PRIMETABLE=$3
 
-	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "true"')" ]; then
+	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
+	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'")" ]; then
+		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+	fi
+
+	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
