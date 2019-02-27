@@ -32,6 +32,7 @@ USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 TWIDGEQUERYCOMMANDARRAY=('lsarchive','lsrecent','lsblocking','lsfollowers','lsfollowing','lsreplies','lsrtreplies')
 
 function not_a_bot() {
+	# This function has been disabled with the switch to oysttyer.  To reactivate, assemble a list of suitable oysttyer commands and pipe them.
 	: # NOP
 }
 function not_a_bot2 {
