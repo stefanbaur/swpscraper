@@ -106,6 +106,7 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 
+			# TODO FIXME Tweet length with twidge is 140, not 280 chars.
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# a simpler method might just check for size <= (280-24), as 23 chars + 1 blank is the current shorturl size enforced by twitter
 			MAXTITLELENGTH=$((280-(${#PREFACE}+${#SINGLEURL})))
