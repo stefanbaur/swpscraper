@@ -1,7 +1,9 @@
 # swpscraper
 Since swp.de stopped tweeting their headlines at @SWPde, it's time for a web2tweet-gateway
 
-Needs: echo tr bash twidge sleep sqlite3 wget grep sed awk test lynx uniq
+Needs: echo tr bash sleep sqlite3 wget grep sed awk test lynx uniq oysttyer
+
+Note: Oysttyer can be git cloned from https://github.com/oysttyer/oysttyer.git
 
 TODO: store DB in a suitable directory, add path to DB file for every sqlite3 call, place swpscraper.sh in /usr/local/bin/ or similar, add cron job (be sure to check if script is already running, you don't want multiple instances)
 
