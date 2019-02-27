@@ -49,7 +49,7 @@ function tweet_and_update() {
 	local BACKOFF=$2
 	local PRIMETABLE=$3
 
-	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "true"')" ]; then
+	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
