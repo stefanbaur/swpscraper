@@ -101,7 +101,7 @@ function tweet_and_update() {
 
 		if ! [ "$PRIMETABLE" = "yes" ]; then
 
-		not_a_bot
+			not_a_bot
 
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
@@ -126,15 +126,18 @@ function tweet_and_update() {
 				if [ "$RETCODE" != "200" ] ; then
 					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+
 					BACKOFF=1
 				else
 					# Add entry to table
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+
 				fi
 			else
 				sleep 1
 				echo "Told to back off from tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
 				sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+
 			fi
 
 		else 
@@ -148,8 +151,9 @@ function tweet_and_update() {
 
 	else
 		# This should update the timestamp so the entry is marked as recent and won't get purged
+		TWEETSTATE="$(sqlite3 SWPDB 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		sleep 1 # make sure timestamps are always at least 1s apart
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
 	fi
 
 	if [ $BACKOFF -eq 1 ]; then
