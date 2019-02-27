@@ -106,21 +106,21 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 
-			# TODO FIXME Tweet length with twidge is 140, not 280 chars.
-			# Message length needs to be truncated to 280 chars without damaging the link
-			# a simpler method might just check for size <= (280-24), as 23 chars + 1 blank is the current shorturl size enforced by twitter
-			MAXTITLELENGTH=$((280-(${#PREFACE}+${#SINGLEURL})))
+			TITLE="${PREFACE}${TITLE}"
+			# Message length needs to be truncated to 140 chars without damaging the link
+			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
+			MAXTITLELENGTH=$((140-23-1))
 			if [ $MAXTITLELENGTH -lt ${#TITLE} ]; then
-				echo -n "Truncating title '$TITLE' to "
+				echo -n "Truncating message '$TITLE' to "
 				TITLE="${TITLE:0:$((MAXTITLELENGTH-4))} ..."
-				echo "'$TITLE' due to tweet length limit."
+				echo "'$TITLE' due to tweet length limit, so that shortlink will still fit."
 			fi
 
 			# compose message
-			MESSAGE="${PREFACE}${TITLE}${SINGLEURL}"
+			MESSAGE="${TITLE}${SINGLEURL}"
 
 			if [ $BACKOFF -eq 0 ]; then
-				echo "About to tweet (in $RANDDELAY): '$MESSAGE' (${#MESSAGE} characters in total)"
+				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
 				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
 				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
