@@ -31,7 +31,10 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 TWIDGEQUERYCOMMANDARRAY=('lsarchive','lsrecent','lsblocking','lsfollowers','lsfollowing','lsreplies','lsrtreplies')
 
-function not_a_bot {
+function not_a_bot() {
+	: # NOP
+}
+function not_a_bot2 {
 	# this is a seemingly random access to our twitter feed, to pretend we're human
 	if [ $((RANDOM%2)) -gt 0 ]; then
 		echo "Pretending to be a human ..."
@@ -107,9 +110,9 @@ function tweet_and_update() {
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 
 			TITLE="${PREFACE}${TITLE}"
-			# Message length needs to be truncated to 140 chars without damaging the link
+			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
-			MAXTITLELENGTH=$((140-23-1))
+			MAXTITLELENGTH=$((280-23-1))
 			if [ $MAXTITLELENGTH -lt ${#TITLE} ]; then
 				echo -n "Truncating message '$TITLE' to "
 				TITLE="${TITLE:0:$((MAXTITLELENGTH-4))} ..."
@@ -122,9 +125,14 @@ function tweet_and_update() {
 			if [ $BACKOFF -eq 0 ]; then
 				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
-				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
-				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
-				if [ "$RETCODE" != "200" ] ; then
+#				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
+#				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
+#				if [ "$RETCODE" != "200" ] ; then
+				# oystter is just as dumb, no return code either
+				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
+				sleep $((1 + RANDOM%5))s
+					if ! echo '/again @SWPde_bot' | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
+					# unable to spot my own tweet!
 					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 
