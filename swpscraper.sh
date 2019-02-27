@@ -28,6 +28,7 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 		'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:65.0) Gecko/20100101 Firefox/65.0' \
 		'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36' 
 		)
+USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 TWIDGEQUERYCOMMANDARRAY=('lsarchive','lsrecent','lsblocking','lsfollowers','lsfollowing','lsreplies','lsrtreplies')
 
 function not_a_bot {
@@ -43,27 +44,61 @@ function not_a_bot {
 
 }
 
+function scrape_page() {
+
+	local URL=$1
+	local USERAGENT=$2
+	local SCRAPEDPAGE=""
+
+	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" -O - "$URL")
+	echo -e "$SCRAPEDPAGE"
+
+}
+
 function tweet_and_update() {
 
 	local SINGLEURL=$1
-	local BACKOFF=$2
-	local PRIMETABLE=$3
+	local USERAGENT=$2
+	local BACKOFF=$3
+	local PRIMETABLE=$4
+
+	local SCRAPEDPAGE=$(scrape_page "$SINGLEURL" "$USERAGENT")
 
 	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
-	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'")" ]; then
+	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
 		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 	fi
 
 	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 
+		# Three more rules on when not to tweet:
+		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
+		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
+			echo "Skipping '$SINGLEURL' - video-only page detected."
+			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+
+		# Page contains '<meta property="og:type" content="image">' - this is an image-gallery-only page
+		elif echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="image">' ; then
+			echo "Skipping '$SINGLEURL' - image-gallery-only page detected."
+			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+
+		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' - this is probably a ticker-only page
+		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' ; then
+			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
+			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+		fi
+	fi
+
+	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
-		TITLE=$(wget -q -O - $SINGLEURL | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?():-]//g')
+		TITLE=$(echo -e "$SCRAPEDPAGE" | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?():-]//g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
+
 		if ! [ "$PRIMETABLE" = "yes" ]; then
 
 		not_a_bot
@@ -145,7 +180,7 @@ else
 	BACKOFF=0
 	for SINGLEURL in $URLLIST; do
 		not_a_bot
-		tweet_and_update $SINGLEURL $BACKOFF || BACKOFF=1
+		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
 	done
 	echo "Done checking for postponed tweets."
 
@@ -171,15 +206,15 @@ not_a_bot
 # fetch URLLIST
 # URLs we should extract start with http and end with html
 # this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-# URLLIST=$(lynx -useragent "${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+# URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
 
 # This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
-URLLIST=$(lynx -useragent "$USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
 # Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
 # (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-# URLLIST=$(lynx -useragent "${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+# URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
 # This list can be trimmed down further by removing certain strings (e.g. if you don't want news from the "panorama" or "sport" sections)
 # Examples:
@@ -198,7 +233,7 @@ for SINGLEURL in $URLLIST; do
 	SINGLEURL=$(echo $SINGLEURL | tr -d -c 'a-zA-Z0-9_/.:-') # SWP only uses this character subset in their URLs
 
 	if [ -n "$SINGLEURL" ] ; then
-		if ! tweet_and_update $SINGLEURL $BACKOFF $PRIMETABLE ; then
+		if ! tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" "$PRIMETABLE" ; then
 			BACKOFF=1
 		fi
 	fi
