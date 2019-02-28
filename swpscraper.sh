@@ -236,8 +236,7 @@ URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/panorama/" )
 URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/sport/" )
 
 # More aggressive filtering: whitelisting Link destinations
-# URLLIST=$(echo -e "$URLLIST" | grep -E grep -E "^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/" )
-
+# URLLIST=$(echo -e "$URLLIST" | grep -E "^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/" )
 
 BACKOFF=0
 
