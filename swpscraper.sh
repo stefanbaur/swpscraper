@@ -124,7 +124,7 @@ function tweet_and_update() {
 			MESSAGE="${TITLE}${SINGLEURL}"
 
 			if [ $BACKOFF -eq 0 ]; then
-				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
+				echo -n "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
 #				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
 #				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
@@ -132,14 +132,15 @@ function tweet_and_update() {
 				# oystter is just as dumb, no return code either
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
 				sleep $((1 + RANDOM%5))s
-					if ! echo '/again @SWPde_bot' | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
+				if ! echo '/again @SWPde_bot' | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 					# unable to spot my own tweet!
-					echo "Error tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
+					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 
 					BACKOFF=1
 				else
 					# Add entry to table
+					echo -e " - Tweeted.\n"
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 
 				fi
