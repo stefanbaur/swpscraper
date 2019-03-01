@@ -16,6 +16,9 @@ if [ -n "$PREFACE" ] ; then
 	PREFACE="$(echo "$PREFACE " | tr -s ' ')" # make sure there is exactly one trailing blank if $PREFACE wasn't empty
 fi
 
+# Lifesign message
+[ -z "$LIFESIGN" ] && LIFESIGN='\U0001f44b\U0001f916'
+
 # List of fake user agents to further avoid bot detection
 [ ${#USERAGENTARRAY[*]} -eq 0 ] && \
 USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0' \
@@ -45,6 +48,12 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 BACKOFF=0
 
+function determine_last_tweet_time() {
+	local USERAGENT=$1
+	# we need to grab the first two entries and sort them, in case there is a pinned tweet
+	date -d "@$(scrape_page https://twitter.com/${BOTNAME/@} $USERAGENT | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s
+}
+
 function scrape_page() {
 
 	local URL=$1
@@ -62,6 +71,7 @@ function tweet_and_update() {
 	local USERAGENT=$2
 	local BACKOFF=$3
 	local PRIMETABLE=$4
+	local TWEETEDLINK=0
 
 	local SCRAPEDPAGE=$(scrape_page "$SINGLEURL" "$USERAGENT")
 
@@ -77,7 +87,6 @@ function tweet_and_update() {
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
 			echo "Skipping '$SINGLEURL' - video-only page detected."
 			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
-
 		# Page contains '<meta property="og:type" content="image">' - this is an image-gallery-only page
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="image">' ; then
 			echo "Skipping '$SINGLEURL' - image-gallery-only page detected."
@@ -134,6 +143,7 @@ function tweet_and_update() {
 					# Add entry to table
 					echo -e " - Tweeted."
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+					TWEETEDLINK=1
 				else
 					# unable to spot my own tweet!
 					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
@@ -149,7 +159,6 @@ function tweet_and_update() {
 				sleep 1
 				echo "Told to back off from tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
 				sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
-
 			fi
 
 		else 
@@ -158,7 +167,6 @@ function tweet_and_update() {
 			sleep 1 # this is so every entry has a unique timestamp
 			# Add entry to table
 			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
-
 		fi
 
 	else
@@ -168,10 +176,26 @@ function tweet_and_update() {
 		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
 	fi
 
+
 	if [ $BACKOFF -eq 1 ]; then
 		echo "Setting BACKOFF."
 		return 1
 	else
+		# Determine last tweet time
+		if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
+			local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+			echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet"
+			sleep $RANDLTTDELAY
+			LTT=$(determine_last_tweet_time "$USERAGENT")
+			ONEHAGO=$(date -d '1 hour ago' +%s)
+			echo "Last Tweet Time: '$LTT'"
+			echo "Time one hour ago: '$ONEHAGO'"
+			if [ $LTT -gt $ONEHAGO ] ; then
+				echo "Last Tweet was more than 1 h ago"
+				#echo -e "$LIFESIGN"
+			fi
+		fi
+
 		return 0
 	fi
 }
