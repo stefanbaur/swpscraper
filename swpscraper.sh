@@ -142,7 +142,7 @@ function tweet_and_update() {
 					BACKOFF=1
 				else
 					# Add entry to table
-					echo -e " - Tweeted.\n"
+					echo -e " - Tweeted."
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 
 				fi
