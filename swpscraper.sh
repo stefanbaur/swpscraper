@@ -98,6 +98,7 @@ function tweet_and_update() {
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
+		# TODO FIXME: a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
 		TITLE=$(echo -e "$SCRAPEDPAGE" | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?&():=-]/ /g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
@@ -237,7 +238,7 @@ URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/panorama/" )
 URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/sport/" )
 
 # More aggressive filtering: whitelisting Link destinations
-# URLLIST=$(echo -e "$URLLIST" | grep -E "^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/" )
+URLLIST=$(echo -e "$URLLIST" | grep -E "^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/" )
 
 BACKOFF=0
 
