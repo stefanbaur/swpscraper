@@ -130,17 +130,16 @@ function tweet_and_update() {
 				# if ! echo '/again '"$BOTNAME" | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 				# trying this instead, maybe it helps us stay below the rate limit ...
 				CHECKFORTWEET=$(wget -q -O - "https://twitter.com/$BOTNAME")
-				if ! echo -e "$CHECKFORTWEET" | grep -q "$TITLE" ; then
+				if echo -e "$CHECKFORTWEET" | grep -q "$TITLE" ; then
+					# Add entry to table
+					echo -e " - Tweeted."
+					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+				else
 					# unable to spot my own tweet!
 					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 					echo -e "$CHECKFORTWEET" >> swpscraper.error
 					BACKOFF=1
-				else
-					# Add entry to table
-					echo -e " - Tweeted."
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
-
 				fi
 			else
 				sleep 1
