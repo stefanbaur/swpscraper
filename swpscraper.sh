@@ -44,23 +44,6 @@ USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 
 BACKOFF=0
 
-function not_a_bot() {
-	# This function has been disabled with the switch to oysttyer.  To reactivate, assemble a list of suitable oysttyer commands and pipe them.
-	: # NOP
-}
-function not_a_bot2 {
-	# this is a seemingly random access to our twitter feed, to pretend we're human
-	if [ $((RANDOM%2)) -gt 0 ]; then
-		echo "Pretending to be a human ..."
-		while [ -n "$(twidge $TWIDGEQUERYCOMMANDARRAY[$(($RANDOM%${#TWIDGEQUERYCOMMANDARRAY[*]}))] 2>&1 >/dev/null)" ] ; do
-			RANDBOTDELAY="$[ ( $RANDOM % 60 )  + 1 ]s"
-			echo "Hit Twitter rate limiting/bot detection during query, sleeping for $RANDBOTDELAY and trying again with a different command."
-			sleep $RANDBOTDELAY
-		done
-	fi
-
-}
-
 function scrape_page() {
 
 	local URL=$1
@@ -118,8 +101,6 @@ function tweet_and_update() {
 		fi
 
 		if ! [ "$PRIMETABLE" = "yes" ]; then
-
-			not_a_bot
 
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
@@ -212,7 +193,6 @@ else
 	URLLIST=$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp DESC')
 	BACKOFF=0
 	for SINGLEURL in $URLLIST; do
-		not_a_bot
 		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
 	done
 	echo "Done checking for postponed tweets."
@@ -227,13 +207,9 @@ fi
 # to look at the database content, run:
 # sqlite3 SWPDB 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
-not_a_bot
-
 INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$BASEURL'"
 sleep $INITIALRANDSLEEP
-
-not_a_bot
 
 # TODO maybe download raw html first and parse it with xmlstarlet?  Might allow for a more precise matching of which items should trigger a tweet and which should not
 # fetch URLLIST
