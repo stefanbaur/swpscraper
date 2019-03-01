@@ -34,7 +34,6 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 		'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:65.0) Gecko/20100101 Firefox/65.0' \
 		'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36' 
 		)
-USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 
 [ -z "$LINKTYPE" ] && LINKTYPE="fullpage"
 
@@ -42,6 +41,8 @@ USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 # BLACKLIST="^https://www.swp.de/panorama/|^https://www.swp.de/sport/"
 # WHITELIST="^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/"
 
+# some vars that need to be initialized here - don't touch
+USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 BACKOFF=0
 
 function scrape_page() {
@@ -203,7 +204,6 @@ else
 	fi
 fi
 
-
 # to look at the database content, run:
 # sqlite3 SWPDB 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
@@ -237,7 +237,6 @@ else
 	: # NOP
 fi
 
-
 for SINGLEURL in $URLLIST; do
 
 	# IMPORTANT: String must be filtered for valid chars to block SQL injection and shell injection
@@ -249,6 +248,7 @@ for SINGLEURL in $URLLIST; do
 		fi
 	fi
 done
+
 if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
 	exit 1
