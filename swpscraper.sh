@@ -122,10 +122,7 @@ function tweet_and_update() {
 			if [ $BACKOFF -eq 0 ]; then
 				echo -n "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
-#				# twidge is so stupid, it doesn't check return codes so it doesn't throw an error when a message gets rejected
-#				RETCODE=$(echo "$MESSAGE" | twidge -d update 2>&1 | awk '$1 == "response:" && $2 == "RspHttp" && $3 == "{status" { print $5 }' | tr -d ',')
-#				if [ "$RETCODE" != "200" ] ; then
-				# oystter is just as dumb, no return code either
+				# oystter is dumb, no return code either
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 				sleep $RANDCHECKDELAY
