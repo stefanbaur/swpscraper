@@ -248,6 +248,9 @@ fi
 # this is to purge entries older than 14 days (to keep the database small)
 sqlite3 SWPDB 'delete from swphomepage where timestamp < datetime("now","-14 days")'
 
+# reset lifesigncheck
+sqlite3 SWPDB 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
+
 # check if table is empty, switch to priming mode if true
 if [ -z "$(sqlite3 SWPDB 'SELECT * FROM swphomepage ORDER BY timestamp DESC LIMIT 1')" ]; then
 	echo 'URL table is empty, priming with content without tweeting'
@@ -300,9 +303,6 @@ elif [ -n "$BLACKLIST" ]; then
 else
 	: # NOP
 fi
-
-# reset lifesigncheck
-sqlite3 SWPDB 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
 
 for SINGLEURL in $URLLIST; do
 
