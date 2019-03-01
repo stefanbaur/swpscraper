@@ -2,6 +2,8 @@
 
 # Page to be scraped:
 BASEURL="https://www.swp.de"
+
+# Twitter handle to use
 BOTNAME="@SWPde_bot"
 
 # Tweets will be prefaced with this string:
