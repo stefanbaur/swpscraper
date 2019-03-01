@@ -148,7 +148,7 @@ function tweet_and_update() {
 				sleep $RANDDELAY
 				# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
 				# that's why we need to perform a webscrape to check if our tweet went out
-				echo "$MESSAGE" | $TWITTER
+				echo "$MESSAGE" | eval "$TWITTER"
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 				echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 				sleep $RANDCHECKDELAY
@@ -229,7 +229,7 @@ function tweet_and_update() {
 					echo "Last Tweet was more than 1 h ago."
 					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
-						echo -e "$LIFESIGN" | $TWITTER
+						echo -e "$LIFESIGN $(date +"%x %X")" | eval "$TWITTER"
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
