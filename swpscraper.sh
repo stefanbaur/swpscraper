@@ -125,6 +125,7 @@ function tweet_and_update() {
 				# oystter is dumb, no return code either
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+				echo "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility"
 				sleep $RANDCHECKDELAY
 				# if ! echo '/again '"$BOTNAME" | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 				# trying this instead, maybe it helps us stay below the rate limit ...
