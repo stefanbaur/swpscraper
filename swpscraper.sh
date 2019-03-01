@@ -1,20 +1,23 @@
 #!/bin/bash
 
+# source config
+. ./swpscraper.config
+
 # Page to be scraped:
-BASEURL="https://www.swp.de"
+[ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
 
 # Twitter handle to use
-BOTNAME="@SWPde_bot"
+[ -z "BOTNAME" ] && BOTNAME="@SWPde_bot"
 
 # Tweets will be prefaced with this string:
-#PREFACE=".@SWPde #SWP #SWPde "
-PREFACE=""
+#[ -z "$PREFACE" ] && PREFACE=".@SWPde #SWP #SWPde "
 
 if [ -n "$PREFACE" ] ; then
 	PREFACE="$(echo "$PREFACE " | tr -s ' ')" # make sure there is exactly one trailing blank if $PREFACE wasn't empty
 fi
 
 # List of fake user agents to further avoid bot detection
+[ ${#USERAGENTARRAY[*]} -eq 0 ] && \
 USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101 Firefox/65.0' \
 		'Google Chrome Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36' \
 		'Mozilla Firefox Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0' \
