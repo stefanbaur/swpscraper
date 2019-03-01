@@ -200,8 +200,8 @@ function tweet_and_update() {
 			fi
 			LTT=${LASTTWEET/|*}
 			ONEHAGO=$(date -d '1 hour ago' +%s)
-			echo "Last Tweet Time: '$LTT'"
-			echo "Time one hour ago: '$ONEHAGO'"
+			#echo "Last Tweet Time: '$LTT'"
+			#echo "Time one hour ago: '$ONEHAGO'"
 			if [ $LTT -lt $ONEHAGO ] ; then
 				echo "Last Tweet was more than 1 h ago."
 				# currently disabled as it would trigger rate limiting
