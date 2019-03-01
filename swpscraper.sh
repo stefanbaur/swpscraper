@@ -35,7 +35,14 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 		'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36' 
 		)
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
-TWIDGEQUERYCOMMANDARRAY=('lsarchive','lsrecent','lsblocking','lsfollowers','lsfollowing','lsreplies','lsrtreplies')
+
+[ -z "$LINKTYPE" ] && LINKTYPE="fullpage"
+
+# Example Black- and Whitelist entries that may be placed in swpscraper.config
+# BLACKLIST="^https://www.swp.de/panorama/|^https://www.swp.de/sport/"
+# WHITELIST="^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/"
+
+BACKOFF=0
 
 function not_a_bot() {
 	# This function has been disabled with the switch to oysttyer.  To reactivate, assemble a list of suitable oysttyer commands and pipe them.
@@ -185,6 +192,7 @@ function tweet_and_update() {
 	fi
 }
 
+### BEGIN MAIN PROGRAM ###
 
 # check if sqlite DB exists; if not, create it
 if ! [ -f SWPDB ] ; then
@@ -230,26 +238,29 @@ not_a_bot
 # TODO maybe download raw html first and parse it with xmlstarlet?  Might allow for a more precise matching of which items should trigger a tweet and which should not
 # fetch URLLIST
 # URLs we should extract start with http and end with html
-# this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-# URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
 
+if [ "$LINKTYPE" = "noticker" ] ; then
+	# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
+	URLLIST=$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+elif [ "$LINKTYPE" = "tickeronly" ]; then
+	# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
+	# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
+	URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+else
+	# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
+	URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+fi
 
-# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
-URLLIST=$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
+if [ -n "$WHITELIST" ]; then
+	# aggressive filtering: whitelisted link destinations
+	URLLIST=$(echo -e "$URLLIST" | grep -E "$WHITELIST" )
+elif [ -n "$BLACKLIST" ]; then
+	# less aggressive filtering: blacklisted link destinations
+	URLLIST=$(echo -e "$URLLIST" | grep -v -E "$BLACKLIST" )
+else
+	: # NOP
+fi
 
-# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
-# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-# URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
-
-# This list can be trimmed down further by removing certain strings (e.g. if you don't want news from the "panorama" or "sport" sections)
-# Examples:
-URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/panorama/" )
-URLLIST=$(echo -e "$URLLIST" | grep -v "^https://www.swp.de/sport/" )
-
-# More aggressive filtering: whitelisting Link destinations
-URLLIST=$(echo -e "$URLLIST" | grep -E "^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/" )
-
-BACKOFF=0
 
 for SINGLEURL in $URLLIST; do
 
@@ -269,3 +280,5 @@ else
 	echo "Done."
 	exit 0
 fi
+
+#### END MAIN PROGRAM ####
