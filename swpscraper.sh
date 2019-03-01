@@ -132,7 +132,8 @@ function tweet_and_update() {
 #				if [ "$RETCODE" != "200" ] ; then
 				# oystter is just as dumb, no return code either
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
-				sleep $((1 + RANDOM%5))s
+				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+				sleep $RANDCHECKDELAY
 				if ! echo '/again @SWPde_bot' | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 					# unable to spot my own tweet!
 					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
