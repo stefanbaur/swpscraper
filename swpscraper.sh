@@ -3,6 +3,9 @@
 # source config
 . ./swpscraper.config
 
+# Path and file name for sqlite database
+[ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
+
 # Page to be scraped:
 [ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
 
@@ -82,33 +85,33 @@ function tweet_and_update() {
 	local SCRAPEDPAGE=$(scrape_page "$SINGLEURL" "$USERAGENT")
 
 	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
-	if [ -z "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastnewtweet")'
+	if [ -z "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastnewtweet")'
 	fi
 
-	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
+	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 
 		# Three more rules on when not to tweet:
 		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
 			echo "Skipping '$SINGLEURL' - video-only page detected."
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains '<meta property="og:type" content="image">' - this is an image-gallery-only page
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="image">' ; then
 			echo "Skipping '$SINGLEURL' - image-gallery-only page detected."
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' - this is probably a ticker-only page
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
 	fi
 
-	if [ -n "$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
+	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
@@ -152,14 +155,14 @@ function tweet_and_update() {
 				if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
 					# Add entry to table
 					echo -e " - Tweeted."
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
 					TWEETEDLINK=1
 				else
 					# unable to spot my own tweet!
 					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfailedtweet")'
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfailedtweet")'
 					echo -e "--------------" >> swpscraper.error
 					echo -e "$CHECKFORTWEET" >> swpscraper.error
 					echo -e "--------------" >> swpscraper.error
@@ -172,8 +175,8 @@ function tweet_and_update() {
 			else
 				sleep 1
 				echo "Told to back off from tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
-				sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
-				sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastbackedofftweet")'
+				sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+				sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastbackedofftweet")'
 			fi
 
 		else 
@@ -181,16 +184,16 @@ function tweet_and_update() {
 			echo "priming URL table with '$SINGLEURL'"
 			sleep 1 # this is so every entry has a unique timestamp
 			# Add entry to table
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastprimedtweet")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastprimedtweet")'
 		fi
 
 	else
 		# This should update the timestamp so the entry is marked as recent and won't get purged
-		TWEETSTATE="$(sqlite3 SWPDB 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
+		TWEETSTATE="$(sqlite3 $DBFILE 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		sleep 1 # make sure timestamps are always at least 1s apart
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
-		sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
 	fi
 
 	echo "Done processing '$SINGLEURL'"
@@ -199,9 +202,9 @@ function tweet_and_update() {
 		echo "Setting BACKOFF."
 		return 1
 	else
-		if [ -z "$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status="lastlifesigncheck" ORDER BY timestamp DESC')" ] ; then
+		if [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status="lastlifesigncheck" ORDER BY timestamp DESC')" ] ; then
 			# set flag that we've been here during this run
-			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
 			# Determine last tweet time
 			if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
 				if [ -z "$LASTTWEET" ] ; then
@@ -212,11 +215,11 @@ function tweet_and_update() {
 				fi
 				LTT=${LASTTWEET/|*}
 				ONEHAGO=$(date -d '1 hour ago' +%s)
-				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
+				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
 				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
 					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date +%s)
 				else
-					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 				fi
 				#echo "Last Tweet Time: '$LTT'"
 				#echo "Time one hour ago: '$ONEHAGO'"
@@ -225,7 +228,7 @@ function tweet_and_update() {
 					if [ $LASTLIFESIGNTWEETATTEMPT -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
 						echo -e "$LIFESIGN" | ../oysttyer/oysttyer.pl -script
-						sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
+						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
 						return 1
@@ -240,25 +243,25 @@ function tweet_and_update() {
 ### BEGIN MAIN PROGRAM ###
 
 # check if sqlite DB exists; if not, create it
-if ! [ -f SWPDB ] || [ -z "$(sqlite3 SWPDB '.tables swphomepage')" ] ; then
-	sqlite3 SWPDB 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted)'
+if ! [ -f $DBFILE ] || [ -z "$(sqlite3 $DBFILE '.tables swphomepage')" ] ; then
+	sqlite3 $DBFILE 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted)'
 fi
-[ -z "$(sqlite3 SWPDB '.tables state')" ] && sqlite3 SWPDB 'CREATE TABLE state (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, status data_type PRIMARY KEY)'
+[ -z "$(sqlite3 $DBFILE '.tables state')" ] && sqlite3 $DBFILE 'CREATE TABLE state (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, status data_type PRIMARY KEY)'
 
 # this is to purge entries older than 14 days (to keep the database small)
-sqlite3 SWPDB 'delete from swphomepage where timestamp < datetime("now","-14 days")'
+sqlite3 $DBFILE 'delete from swphomepage where timestamp < datetime("now","-14 days")'
 
 # reset lifesigncheck
-sqlite3 SWPDB 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
+sqlite3 $DBFILE 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
 
 # check if table is empty, switch to priming mode if true
-if [ -z "$(sqlite3 SWPDB 'SELECT * FROM swphomepage ORDER BY timestamp DESC LIMIT 1')" ]; then
+if [ -z "$(sqlite3 $DBFILE 'SELECT * FROM swphomepage ORDER BY timestamp DESC LIMIT 1')" ]; then
 	echo 'URL table is empty, priming with content without tweeting'
 	echo '(to avoid tweetstorm)'
 	PRIMETABLE='yes'
 else
 	echo "Checking for postponed tweets ..."
-	URLLIST=$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp ASC')
+	URLLIST=$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp ASC')
 	BACKOFF=0
 	for SINGLEURL in $URLLIST; do
 		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
@@ -272,7 +275,7 @@ else
 fi
 
 # to look at the database content, run:
-# sqlite3 SWPDB 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
+# sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$BASEURL'"
