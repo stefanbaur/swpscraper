@@ -243,6 +243,9 @@ for SINGLEURL in $URLLIST; do
 		if ! tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" "$PRIMETABLE" ; then
 			BACKOFF=1
 		fi
+	else
+		# does for even start when $URLLIST is empty?
+		echo "Not a single URL found."
 	fi
 done
 
