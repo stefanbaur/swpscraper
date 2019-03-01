@@ -231,7 +231,7 @@ if [ -z "$(sqlite3 SWPDB 'SELECT * FROM swphomepage ORDER BY timestamp DESC LIMI
 	PRIMETABLE='yes'
 else
 	echo "Checking for postponed tweets ..."
-	URLLIST=$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp DESC')
+	URLLIST=$(sqlite3 SWPDB 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp ASC')
 	BACKOFF=0
 	for SINGLEURL in $URLLIST; do
 		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
