@@ -134,6 +134,8 @@ function tweet_and_update() {
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 				sleep $RANDCHECKDELAY
+# we could try to use this instead, maybe it helps us stay below the rate limit ...
+#				if ! wget -O - https://twitter.com/SWPde_bot | grep -q "$TITLE" ; then
 				if ! echo '/again @SWPde_bot' | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 					# unable to spot my own tweet!
 					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted. RetCode was: '$RETCODE'"
