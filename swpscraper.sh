@@ -193,42 +193,46 @@ function tweet_and_update() {
 		sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
 	fi
 
+	echo "Done processing '$SINGLEURL'"
 
 	if [ $BACKOFF -eq 1 ]; then
 		echo "Setting BACKOFF."
 		return 1
 	else
-		# Determine last tweet time
-		if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
-			if [ -z "$LASTTWEET" ] ; then
-				local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-				echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet (lifesign check)"
-				sleep $RANDLTTDELAY
-				LASTTWEET=$(determine_last_tweet "$USERAGENT")
-			fi
-			LTT=${LASTTWEET/|*}
-			ONEHAGO=$(date -d '1 hour ago' +%s)
-			LASTLIFESIGNTWEETATTEMPT=$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
-			if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
-				LASTLIFESIGNTWEETATTEMPTEPOCH=$(date +%s)
-			else
-				LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-			fi
-			#echo "Last Tweet Time: '$LTT'"
-			#echo "Time one hour ago: '$ONEHAGO'"
-			if [ $LTT -lt $ONEHAGO ] ; then
-				echo "Last Tweet was more than 1 h ago."
-				if [ $LASTLIFESIGNTWEETATTEMPT -lt $ONEHAGO ] ; then
-					echo "Tweeting lifesign."
-					echo -e "$LIFESIGN" | ../oysttyer/oysttyer.pl -script
-					sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
+		if [ -z "$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status="lastlifesigncheck" ORDER BY timestamp DESC')" ] ; then
+			# set flag that we've been here during this run
+			sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
+			# Determine last tweet time
+			if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
+				if [ -z "$LASTTWEET" ] ; then
+					local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+					echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet (lifesign check)"
+					sleep $RANDLTTDELAY
+					LASTTWEET=$(determine_last_tweet "$USERAGENT")
+				fi
+				LTT=${LASTTWEET/|*}
+				ONEHAGO=$(date -d '1 hour ago' +%s)
+				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
+					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date +%s)
 				else
-					echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
-					return 1
+					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 SWPDB 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+				fi
+				#echo "Last Tweet Time: '$LTT'"
+				#echo "Time one hour ago: '$ONEHAGO'"
+				if [ $LTT -lt $ONEHAGO ] ; then
+					echo "Last Tweet was more than 1 h ago."
+					if [ $LASTLIFESIGNTWEETATTEMPT -lt $ONEHAGO ] ; then
+						echo "Tweeting lifesign."
+						echo -e "$LIFESIGN" | ../oysttyer/oysttyer.pl -script
+						sqlite3 SWPDB 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
+					else
+						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
+						return 1
+					fi
 				fi
 			fi
 		fi
-
 		return 0
 	fi
 }
@@ -296,6 +300,9 @@ elif [ -n "$BLACKLIST" ]; then
 else
 	: # NOP
 fi
+
+# reset lifesigncheck
+sqlite3 SWPDB 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
 
 for SINGLEURL in $URLLIST; do
 
