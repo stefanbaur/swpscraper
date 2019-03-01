@@ -48,10 +48,16 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 BACKOFF=0
 
-function determine_last_tweet_time() {
+function determine_last_tweet() {
 	local USERAGENT=$1
+	local TWEETTIME
+	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	date -d "@$(scrape_page https://twitter.com/${BOTNAME/@} $USERAGENT | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s
+	SCRAPEDPAGE=$(scrape_page https://twitter.com/${BOTNAME/@} $USERAGENT)
+	TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+	# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
+	TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+	echo "${TWEETTIME}|${TWEETTITLES}"
 }
 
 function scrape_page() {
@@ -129,17 +135,18 @@ function tweet_and_update() {
 			MESSAGE="${TITLE}${SINGLEURL}"
 
 			if [ $BACKOFF -eq 0 ]; then
-				echo -n "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
+				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
 				# oystter is dumb, no return code either
 				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-				echo "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility"
+				echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 				sleep $RANDCHECKDELAY
 				# if ! echo '/again '"$BOTNAME" | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
 				# trying this instead, maybe it helps us stay below the rate limit ...
-				CHECKFORTWEET=$(scrape_page "https://twitter.com/$BOTNAME" "$USERAGENT")
-				if echo -e "$CHECKFORTWEET" | grep -q "$TITLE" ; then
+				LASTTWEET=$(determine_last_tweet "$USERAGENT")
+				# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
+				if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
 					# Add entry to table
 					echo -e " - Tweeted."
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
@@ -150,6 +157,8 @@ function tweet_and_update() {
 					sqlite3 SWPDB 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 					echo -e "--------------" >> swpscraper.error
 					echo -e "$CHECKFORTWEET" >> swpscraper.error
+					echo -e "--------------" >> swpscraper.error
+					echo -e "$TITLE" >>swpscraper.error
 					echo -e "--------------" >> swpscraper.error
 					echo -e "$CHECKFORTWEET" | grep "$TITLE" >>swpscraper.error
 					echo -e "--------------" >> swpscraper.error
@@ -183,16 +192,21 @@ function tweet_and_update() {
 	else
 		# Determine last tweet time
 		if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
-			local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-			echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet"
-			sleep $RANDLTTDELAY
-			LTT=$(determine_last_tweet_time "$USERAGENT")
+			if [ -z "$LASTTWEET" ] ; then
+				local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+				echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet"
+				sleep $RANDLTTDELAY
+				LASTTWEET=$(determine_last_tweet "$USERAGENT")
+			fi
+			LTT=${LASTTWEET/|*}
 			ONEHAGO=$(date -d '1 hour ago' +%s)
 			echo "Last Tweet Time: '$LTT'"
 			echo "Time one hour ago: '$ONEHAGO'"
-			if [ $LTT -gt $ONEHAGO ] ; then
-				echo "Last Tweet was more than 1 h ago"
-				#echo -e "$LIFESIGN"
+			if [ $LTT -lt $ONEHAGO ] ; then
+				echo "Last Tweet was more than 1 h ago."
+				# currently disabled as it would trigger rate limiting
+				#echo "Tweeting lifesign."
+				#echo -e "$LIFESIGN" | ../oysttyer/oysttyer.pl -script
 			fi
 		fi
 
