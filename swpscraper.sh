@@ -6,6 +6,9 @@
 # Path and file name for sqlite database
 [ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
 
+# Path, file name, and parameters for command line Twitter client
+[ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
+
 # Page to be scraped:
 [ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
 
@@ -143,13 +146,12 @@ function tweet_and_update() {
 			if [ $BACKOFF -eq 0 ]; then
 				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 				sleep $RANDDELAY
-				# oystter is dumb, no return code either
-				echo "$MESSAGE" | ../oysttyer/oysttyer.pl -script
+				# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
+				# that's why we need to perform a webscrape to check if our tweet went out
+				echo "$MESSAGE" | $TWITTER
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 				echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 				sleep $RANDCHECKDELAY
-				# if ! echo '/again '"$BOTNAME" | ../oysttyer/oysttyer.pl -script | grep -q "$TITLE" ; then 
-				# trying this instead, maybe it helps us stay below the rate limit ...
 				LASTTWEET=$(determine_last_tweet "$USERAGENT")
 				# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
 				if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
@@ -217,7 +219,7 @@ function tweet_and_update() {
 				ONEHAGO=$(date -d '1 hour ago' +%s)
 				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
 				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
-					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date +%s)
+					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "2 hours ago" +%s)
 				else
 					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 				fi
@@ -225,9 +227,9 @@ function tweet_and_update() {
 				#echo "Time one hour ago: '$ONEHAGO'"
 				if [ $LTT -lt $ONEHAGO ] ; then
 					echo "Last Tweet was more than 1 h ago."
-					if [ $LASTLIFESIGNTWEETATTEMPT -lt $ONEHAGO ] ; then
+					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
-						echo -e "$LIFESIGN" | ../oysttyer/oysttyer.pl -script
+						echo -e "$LIFESIGN" | $TWITTER
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
