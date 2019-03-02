@@ -286,16 +286,16 @@ fi
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 URLLIST=""
+INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 
 for SINGLEBASEURL in $BASEURL; do
-	INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 	echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$SINGLEBASEURL'"
 	sleep $INITIALRANDSLEEP
 
 	# TODO maybe download raw html first and parse it with xmlstarlet?  Might allow for a more precise matching of which items should trigger a tweet and which should not
 	# fetch URLLIST
 	# URLs we should extract start with http and end with html
-
+	# TODO replace lynx -dump with a tool that allows setting a referer, for faking a human surf experience
 	if [ "$LINKTYPE" = "noticker" ] ; then
 		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
 		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u ) "
@@ -307,6 +307,8 @@ for SINGLEBASEURL in $BASEURL; do
 		# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
 		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u ) "
 	fi
+	#  [ -z "$FAKEREFERER" ] && FAKEREFERER=$SINGLEBASEURL # for future use - pretend user was following links from first page in list
+	INITIALRANDSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s" # subsequent runs don't need such a long interval
 done
 
 if [ -n "$WHITELIST" ]; then
