@@ -214,9 +214,11 @@ function tweet_and_update() {
 					echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet (lifesign check)"
 					sleep $RANDLTTDELAY
 					LASTTWEET=$(determine_last_tweet "$USERAGENT")
+					# TODO FIXME do we have to call this somewhere here as well? sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
 				fi
 				LTT=${LASTTWEET/|*}
-				ONEHAGO=$(date -d '1 hour ago' +%s)
+				NOW=$(date -R)
+				ONEHAGO=$(date -d "$NOW -1 hour" +%s)
 				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
 				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
 					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "2 hours ago" +%s)
@@ -235,6 +237,8 @@ function tweet_and_update() {
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
 						return 1
 					fi
+				else
+					echo "Last Tweet was less than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)') No action needed."
 				fi
 			fi
 		fi
