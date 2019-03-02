@@ -107,7 +107,7 @@ function tweet_and_update() {
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' nor 'class="btn btn-primary more"' - this is probably a ticker-only page
-		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' ; then
+		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
