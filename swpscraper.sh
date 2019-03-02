@@ -285,6 +285,11 @@ fi
 # to look at the database content, run:
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
+# check for shadowban
+if lynx -dump 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' | grep -A 1 -i "Search Results" | grep -q "$BOTNAME"; then
+	echo "No search results - have we been shadowbanned?"
+fi
+
 URLLIST=""
 INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 
