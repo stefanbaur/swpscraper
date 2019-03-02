@@ -222,13 +222,15 @@ function tweet_and_update() {
 				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
 				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
 					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "2 hours ago" +%s)
+					echo "No Lifesign attempt found in DB."
 				else
 					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+					echo "Lifesign attempt found in DB."
 				fi
 				#echo "Last Tweet Time: '$LTT'"
 				#echo "Time one hour ago: '$ONEHAGO'"
 				if [ $LTT -lt $ONEHAGO ] ; then
-					echo "Last Tweet was more than 1 h ago."
+					echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
 						echo -e "$LIFESIGN $(date +"%x %X")" | eval "$TWITTER"
@@ -238,7 +240,7 @@ function tweet_and_update() {
 						return 1
 					fi
 				else
-					echo "Last Tweet was less than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)') No action needed."
+					echo "Last Tweet was less than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)').  No action needed."
 				fi
 			fi
 		fi
@@ -283,25 +285,29 @@ fi
 # to look at the database content, run:
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
-INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
-echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$BASEURL'"
-sleep $INITIALRANDSLEEP
+URLLIST=""
 
-# TODO maybe download raw html first and parse it with xmlstarlet?  Might allow for a more precise matching of which items should trigger a tweet and which should not
-# fetch URLLIST
-# URLs we should extract start with http and end with html
+for SINGLEBASEURL in $BASEURL; do
+	INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
+	echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$SINGLEBASEURL'"
+	sleep $INITIALRANDSLEEP
 
-if [ "$LINKTYPE" = "noticker" ] ; then
-	# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
-	URLLIST=$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
-elif [ "$LINKTYPE" = "tickeronly" ]; then
-	# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
-	# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-	URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore $BASEURL | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
-else
-	# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-	URLLIST=$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly $BASEURL 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u )
-fi
+	# TODO maybe download raw html first and parse it with xmlstarlet?  Might allow for a more precise matching of which items should trigger a tweet and which should not
+	# fetch URLLIST
+	# URLs we should extract start with http and end with html
+
+	if [ "$LINKTYPE" = "noticker" ] ; then
+		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
+		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u ) "
+	elif [ "$LINKTYPE" = "tickeronly" ]; then
+		# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
+		# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
+		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u ) "
+	else
+		# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
+		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }' | uniq -u ) "
+	fi
+done
 
 if [ -n "$WHITELIST" ]; then
 	# aggressive filtering: whitelisted link destinations
