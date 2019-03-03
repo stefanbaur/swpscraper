@@ -300,7 +300,7 @@ function tweet_and_update() {
 						esac
 						echo -e "Lifesign message is: '$LIFESIGN'"
 
-						eval "$TWITTER"' -status="'"$LIFESIGN"'"'
+						eval "$TWITTER -status=\"$LIFESIGN\""
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
