@@ -60,6 +60,7 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 [ -z "$EXTERNALNEWSMSG" ] && EXTERNALNEWSMSG="Aktuelle Meldung"
 [ -z "$NATIONALNEWSURLMSG" ] && NATIONALNEWSURLMSG="Überregionale Erwähnung unserer Stadt"
 [ -z "$CITYGREP" ] && CITYGREP="Ulm\W|#Ulm"
+[ -z "$EVENTSUGGESTIONMSG" ] && EVENTSUGGESTIONMSG="Wie wäre es mit ein paar Veranstaltungstipps"
 
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
