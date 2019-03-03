@@ -344,20 +344,20 @@ for SINGLEBASEURL in $BASEURL; do
 	# TODO replace lynx -dump with a tool that allows setting a referer, for faking a human surf experience
 	if [ "$LINKTYPE" = "noticker" ] ; then
 		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
-		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' ) "
+		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
 	elif [ "$LINKTYPE" = "tickeronly" ]; then
 		# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
 		# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }') "
+		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	else
 		# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }') "
+		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	fi
 	#  [ -z "$FAKEREFERER" ] && FAKEREFERER=$SINGLEBASEURL # for future use - pretend user was following links from first page in list
 	INITIALRANDSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s" # subsequent runs don't need such a long interval
 done
 
-URLLIST=$(echo -e "$URLLIST" | uniq -u)
+URLLIST=$(echo -e "$URLLIST" | uniq )
 
 if [ -n "$WHITELIST" ]; then
 	# aggressive filtering: whitelisted link destinations
