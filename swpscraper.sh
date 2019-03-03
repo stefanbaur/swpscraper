@@ -264,34 +264,37 @@ function tweet_and_update() {
 						CDA=($CONVERTEDDATES)
 						REMAININGFORECAST=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $2 }' | sed -e 's/ /_/g' -e 's/_$//g')
 						RFA=($REMAININGFORECAST)
-						FDFM="$FIVEDAYFORECASTMSG"
+						FDFM="$FIVEDAYSFORECASTMSG"
 						ONEBOT="$(echo -e '\U0001f916')"
-						ONENOISE="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						ONENOISE1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						ONENOISE2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 						THREEBOTS="$(echo -e '\U0001f916\U0001f916\U0001f916')"
-						THREENOISES="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						THREENOISES1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 						# chatter
 						CHATTER=$((RANDOM%4))
 						[ $(date +%H) -lt 7 ] && CHATTER=$((CHATTER+2)) # due to time zone issues, weather forecasts don't work before 7am
 # TODO this needs some kind of logging (via DB) so the forecast and sunrise/sunset messages don't appear more than once per day (current weather is OK)
 						case $CHATTER in
 							0)
-								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE $ONEBOT"
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
 								;;
 							1)
-								LIFESIGN="$THREEBOTS $THREENOISES $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
-								LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES $THREEBOTS"
+								LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
+								LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
 								;;
 							2)
-								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE $ONEBOT"
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
 								;;
 							3)
-								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE $ONEBOT"
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
 								;;
 							*)	# catch-all gets us the default chatter message
 								LIFESIGN+=" $(date +"%x %X")"
 								;;
 						esac
 						echo -e "Lifesign message is: '$LIFESIGN'"
+
 						eval "$TWITTER"' -status="'"$LIFESIGN"'"'
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
