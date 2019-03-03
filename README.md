@@ -14,3 +14,5 @@ Questions, suggestions, etc.: https://twitter.com/farbenstau
 Update 1: Looks like somebody already decided to put this code to good use and is operating a Twitter bot with it.  Follow https://twitter.com/SWPde_bot while it's still alive (my guess is that either Twitter or SWP will enforce a shutdown soon, so let's hope for the Streisand effect to kick in).
 
 Update 2: Looks like @SWPde has reactivated and unlocked their Twitter account, and they are tweeting again.  I'm curious if they will continue ...
+
+Update 3: Sadly, the @SWPde account has become inactive again. :'(  But at least it's still around and unprotected. :)
