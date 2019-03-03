@@ -23,7 +23,7 @@ if [ -n "$PREFACE" ] ; then
 fi
 
 # Lifesign message
-[ -z "$LIFESIGN" ] && LIFESIGN='\U0001f44b\U0001f916'
+[ -z "$LIFESIGN" ] && LIFESIGN=$(echo -e "\U0001f44b\U0001f916")
 
 # List of fake user agents to further avoid bot detection
 [ ${#USERAGENTARRAY[*]} -eq 0 ] && \
