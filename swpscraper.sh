@@ -102,8 +102,16 @@ function tweet_and_update() {
 	fi
 
 	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
+		# Determine publication/modification/page generation time
+		PUBTIME=""
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta http-equiv="last-modified" content="' | sed -e 's/^.*<meta http-equiv="last-modified" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta property="article:published_time" content="' | sed -e 's/^.*<meta property="article:published_time" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta property="article:modified_time" content="' | sed -e 's/^.*<meta property="article:modified_time" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '"datePublished": "' | sed -e 's/^.*"datePublished": "\([^"]*\)".*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '"dateModified": "' | sed -e 's/^.*"dateModified": "\([^"]*\)".*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<!-- Generiert: ' | sed -e 's/^.*<!-- Generiert: \(.*\) -->.*$/\1/g')" +%s)\n"
 
-		# Three more rules on when not to tweet:
+		# Some more rules on when not to tweet:
 		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
 			echo "Skipping '$SINGLEURL' - video-only page detected."
@@ -117,6 +125,11 @@ function tweet_and_update() {
 		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' nor 'class="btn btn-primary more"' - this is probably a ticker-only page
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
+		# Page timestamps are all older than 24h
+		elif [ $(echo -e "$PUBTIME"| sort -un | tail -n 1) -lt $(date -d '-24 hours' +%s) ]; then
+			echo "Skipping '$SINGLEURL' - all timestamps are older than 24h.  Slow news day, eh?"
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
