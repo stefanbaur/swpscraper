@@ -257,21 +257,24 @@ function tweet_and_update() {
 # TODO this needs some kind of logging (via DB) so the forecast and sunrise/sunset messages don't appear more than once per day (current weather is OK)
 						case $CHATTER in
 							0)
-								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE $ONEBOT"
 								;;
 							1)
-								echo -e "$THREEBOTS $THREENOISES $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES $THREEBOTS" | tee - 1>&2 | eval "$TWITTER"
+								LIFESIGN="$THREEBOTS $THREENOISES $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
+								LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES $THREEBOTS"
 								;;
 							2)
-								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE $ONEBOT"
 								;;
 							3)
-								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								LIFESIGN="$ONEBOT $ONENOISE $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE $ONEBOT"
 								;;
 							*)	# catch-all gets us the default chatter message
-								echo -e "$LIFESIGN $(date +"%x %X")" | tee - 1>&2 | eval "$TWITTER"
+								LIFESIGN+=" $(date +"%x %X")"
 								;;
 						esac
+						echo -e "Lifesign message is: '$LIFESIGN'"
+						eval "$TWITTER"' -status="'"$LIFESIGN"'"'
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
