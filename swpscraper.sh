@@ -272,22 +272,27 @@ function tweet_and_update() {
 						THREENOISES1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 						THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 						# chatter
-						CHATTER=$((RANDOM%4))
-						[ $(date +%H) -lt 7 ] && CHATTER=$((CHATTER+2)) # due to time zone issues, weather forecasts don't work before 7am
-# TODO this needs some kind of logging (via DB) so the forecast and sunrise/sunset messages don't appear more than once per day (current weather is OK)
+						TODAYEPOCH=$(date -d "$(date +%F)" +%s)
+						LASTTODAYFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+						LASTFIVEDAYSFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+						LASTSUNRISESUNSETEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+						CHATTER=$((RANDOM%2))
 						case $CHATTER in
-							0)
-								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
-								;;
-							1)
-								LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
-								LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
-								;;
-							2)
-								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
-								;;
-							3)
-								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+							0)	# let's try the weather
+								# due to time zone issues, weather forecasts don't work before 7am
+								if [ $(date +%H) -lt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -gt $TODAYEPOCH ] ; then
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
+										sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
+								elif [ $(date +%H) -lt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -gt $TODAYEPOCH ]; then
+										LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
+										LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
+										sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedayforecasttweet")'
+								elif [ -n "$LASTSUNRISESUNSETEPOCH" ] && [ $LASTSUNRISESUNSETEPOCH -gt $TODAYEPOCH ]; then
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
+										sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
+								else
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+								fi
 								;;
 							*)	# catch-all gets us the default chatter message
 								LIFESIGN+=" $(date +"%x %X")"
