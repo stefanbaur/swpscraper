@@ -1,7 +1,7 @@
 # swpscraper
 Since swp.de stopped tweeting their headlines at @SWPde, it's time for a web2tweet-gateway
 
-Needs: curl echo tr bash sleep sqlite3 wget grep sed awk test lynx uniq oysttyer
+Needs: curl echo tr bash sleep sqlite3 wget grep sed awk test lynx uniq oysttyer ansiweather
 
 Note: Oysttyer can be git cloned from https://github.com/oysttyer/oysttyer.git
 
