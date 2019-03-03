@@ -52,6 +52,12 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 
 [ ${#NOISEARRAY[*]} -eq 0 ] && NOISEARRAY=( klick )
 
+[ -z "$LOCATION" ] && LOCATION='Ulm,Deutschland'
+[ -z "$CURRENTWEATHERMSG" ] && CURRENTWEATHERMSG="Das Wetter um"
+[ -z "$SUNRISESUNSETMSG" ] && SUNRISESUNSETMSG="Sonnenauf- und -untergang heute"
+[ -z "$TODAYSFORECASTMSG" ] && TODAYSFORECASTMSG="Die heutige Wettervorhersage inklusive Tageshöchst- und -tiefsttemperaturen"
+[ -z "$FIVEDAYSFORECASTMSG" ] && FIVEDAYSFORECASTMSG="Die aktuelle 5-Tages-Wettervorhersage"
+
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 BACKOFF=0
@@ -235,7 +241,6 @@ function tweet_and_update() {
 					echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
-						LOCATION='Ulm,Deutschland'
 						CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/-/\n/g')
 						CW=$(echo -e "$CURRENTWEATHER" | awk '$0 ~ /Current weather in Ulm/ { $1=$2=$3=$4="" ; print $0 }')
 						SUNRISE=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunrise/ { $1=""; print $0}')
