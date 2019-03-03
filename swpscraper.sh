@@ -50,6 +50,8 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 # BLACKLIST="^https://www.swp.de/panorama/|^https://www.swp.de/sport/"
 # WHITELIST="^https://www.swp.de/suedwesten/staedte/ulm/|^https://www.swp.de/suedwesten/staedte/neu-ulm/|^https://www.swp.de/suedwesten/landkreise/kreis-neu-ulm-bayern/|^https://www.swp.de/suedwesten/landkreise/alb-donau/"
 
+[ ${#NOISEARRAY[*]} -eq 0 ] && NOISEARRAY=( klick )
+
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
 BACKOFF=0
@@ -233,7 +235,43 @@ function tweet_and_update() {
 					echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 						echo "Tweeting lifesign."
-						echo -e "$LIFESIGN $(date +"%x %X")" | eval "$TWITTER"
+						LOCATION='Ulm,Deutschland'
+						CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/-/\n/g')
+						CW=$(echo -e "$CURRENTWEATHER" | awk '$0 ~ /Current weather in Ulm/ { $1=$2=$3=$4="" ; print $0 }')
+						SUNRISE=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunrise/ { $1=""; print $0}')
+						SUNSET=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunset/ { $1=""; print $0}')
+						FIVEDAYFORECAST=$(ansiweather -f 6 -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>/\n/g' -e 's/-/\n/g' | awk '$0 ~/°C/ { print $0 }')
+						TODAYSFORECAST=$(echo -e "$FIVEDAYFORECAST" | awk -F':' '{ print $2 }' | head -n 1)
+						CONVERTEDDATES=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $1 }' | xargs -n 1 -I XXX date -d "XXX" +%d.%m.%y | tr '\n' ' ')
+						CDA=($CONVERTEDDATES)
+						REMAININGFORECAST=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $2 }' | sed -e 's/ /_/g' -e 's/_$//g')
+						RFA=($REMAININGFORECAST)
+						FDFM="$FIVEDAYFORECASTMSG"
+						ONEBOT="$(echo -e '\U0001f916')"
+						ONENOISE="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						THREEBOTS="$(echo -e '\U0001f916\U0001f916\U0001f916')"
+						THREENOISES="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+						# chatter
+						CHATTER=$((RANDOM%4))
+						[ $(date +%H) -lt 7 ] && CHATTER=$((CHATTER+2)) # due to time zone issues, weather forecasts don't work before 7am
+# TODO this needs some kind of logging (via DB) so the forecast and sunrise/sunset messages don't appear more than once per day (current weather is OK)
+						case $CHATTER in
+							0)
+								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								;;
+							1)
+								echo -e "$THREEBOTS $THREENOISES $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES $THREEBOTS" | tee - 1>&2 | eval "$TWITTER"
+								;;
+							2)
+								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								;;
+							3)
+								echo -e "$ONEBOT $ONENOISE $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE $ONEBOT" | tee - 1>&2 | eval "$TWITTER"
+								;;
+							*)	# catch-all gets us the default chatter message
+								echo -e "$LIFESIGN $(date +"%x %X")" | tee - 1>&2 | eval "$TWITTER"
+								;;
+						esac
 						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
 					else
 						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
