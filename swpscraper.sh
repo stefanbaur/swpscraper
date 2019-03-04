@@ -71,7 +71,7 @@ function get_external_event_suggestion() {
 	local TIMESTAMP=$(date -d "$(date -d 'today' +%F)" +%s)
 	local HUMANDATE=$(date +%x)
 	local EVENTURLSARRAY=(
-		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event\[suche\]\[pager\]=&event\[suche\]\[kalender-tag\]='"$TIMESTAMP"'&event\[suche\]\[mstmp\]=$TIMESTAMP&event\[suche\]\[stmpflag\]=&event\[suche\]\[start\]=0&event\[suche\]\[vwnum\]=&event\[suche\]\[suchen\]=0&event\[suche\]\[veranstalter\]=&event\[suche\]\[land\]=DE&event\[suche\]\[uhrzeit\]=&event\[suche\]\[group\]=&event\[suche\]\[ed_textsearch\]=&event\[suche\]\[ressort\]=0&event\[suche\]\[plz\]=89073&event\[suche\]\[umkreis\]=10&event\[suche\]\[zeitraum\]=TAG&frmDatum='"$HUMANDATE"'&sf\[seldat\]='"$TIMESTAMP"
+		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event[suche][pager]=&event[suche][kalender-tag]='"$TIMESTAMP"'&event[suche][mstmp]='"$TIMESTAMP"'&event[suche][stmpflag]=&event[suche][start]=0&event[suche][vwnum]=&event[suche][suchen]=0&event[suche][veranstalter]=&event[suche][land]=DE&event[suche][uhrzeit]=&event[suche][group]=&event[suche][ed_textsearch]=&event[suche][ressort]=0&event[suche][plz]=89073&event[suche][umkreis]=10&event[suche][zeitraum]=TAG&frmDatum'"$HUMANDATE"'&sf[seldat]='"$TIMESTAMP"
 		'https://veranstaltungen.ulm.de/leoonline/portals/ulm/veranstaltungen/suche/neu/?search_from='"$HUMANDATE"
 		'https://stadthaus.ulm.de/kalender'
 		'http://www.ulmer-kalender.de/events/day/date/'"${HUMANDATE//-/.}"
@@ -377,7 +377,7 @@ function tweet_and_update() {
 									EXTERNALLOCALNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME")
 									if [ -n "$EXTERNALLOCALNEWS" ] ; then
 										echo "Tweeting latest external local news as lifesign."
-										LIFESIGN=$EXTERNALLOCALNEWS
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$EXTERNALLOCALNEWS"
 									fi
 									;;
 								5)	# let's try competitor news
@@ -388,7 +388,7 @@ function tweet_and_update() {
 									COMPETITORNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
 									if [ -n "$COMPETITORNEWS" ] ; then
 										echo "Tweeting latest competitor news as lifesign."
-										LIFESIGN=$COMPETITORNEWS
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$COMPETITORNEWS"
 									fi
 									;;
 								6)	# let's try nation-wide news
@@ -399,14 +399,14 @@ function tweet_and_update() {
 									NATIONWIDENEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
 									if [ -n "$NATIONWIDENEWS" ] ; then
 										echo "Tweeting last external national news as lifesign."
-										LIFESIGN=$NATIONWIDENEWS
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$NATIONWIDENEWS"
 									fi
 									;;
 								7)	# let's try local events
 									EVENTSUGGESTION=$(get_external_event_suggestion)
 									if [ -n "$EVENTSUGGESTION" ] ; then
 										echo "Tweeting event suggestion as lifesign."
-										LIFESIGN=$EVENTSUGGESTION
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$EVENTSUGGESTION"
 									fi
 									;;
 								*)	# catch-all, just do nothing here
