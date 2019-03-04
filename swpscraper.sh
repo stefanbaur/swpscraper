@@ -61,6 +61,7 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 [ -z "$NATIONALNEWSURLMSG" ] && NATIONALNEWSURLMSG="Überregionale Erwähnung unserer Stadt"
 [ -z "$CITYGREP" ] && CITYGREP="Ulm\W|#Ulm"
 [ -z "$EVENTSUGGESTIONMSG" ] && EVENTSUGGESTIONMSG="Wie wäre es mit ein paar Veranstaltungstipps"
+[ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] && ALTERNATETWITTERCREDENTIALSFILE=""
 
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
@@ -377,7 +378,7 @@ function tweet_and_update() {
 									EXTERNALLOCALNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME")
 									if [ -n "$EXTERNALLOCALNEWS" ] ; then
 										echo "Tweeting latest external local news as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$EXTERNALLOCALNEWS"
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EXTERNALLOCALNEWS"
 									fi
 									;;
 								5)	# let's try competitor news
@@ -399,7 +400,7 @@ function tweet_and_update() {
 									NATIONWIDENEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
 									if [ -n "$NATIONWIDENEWS" ] ; then
 										echo "Tweeting last external national news as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$NATIONWIDENEWS"
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$NATIONWIDENEWS"
 									fi
 									;;
 								7)	# let's try local events
@@ -544,6 +545,7 @@ done
 
 if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
+	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
 	exit 1
 else
 	echo "Done."
