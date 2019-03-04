@@ -71,7 +71,7 @@ function get_external_event_suggestion() {
 	local TIMESTAMP=$(date -d "$(date -d 'today' +%F)" +%s)
 	local HUMANDATE=$(date +%x)
 	local EVENTURLSARRAY=(
-		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event[suche][pager]=&event[suche][kalender-tag]='"$TIMESTAMP"'&event[suche][mstmp]='"$TIMESTAMP"'&event[suche][stmpflag]=&event[suche][start]=0&event[suche][vwnum]=&event[suche][suchen]=0&event[suche][veranstalter]=&event[suche][land]=DE&event[suche][uhrzeit]=&event[suche][group]=&event[suche][ed_textsearch]=&event[suche][ressort]=0&event[suche][plz]=89073&event[suche][umkreis]=10&event[suche][zeitraum]=TAG&frmDatum'"$HUMANDATE"'&sf[seldat]='"$TIMESTAMP"
+		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event[suche][pager]=&event[suche][kalender-tag]='"$TIMESTAMP"'&event[suche][mstmp]='"$TIMESTAMP"'&event[suche][stmpflag]=tag&event[suche][start]=0&event[suche][vwnum]=&event[suche][suchen]=0&event[suche][veranstalter]=&event[suche][land]=DE&event[suche][uhrzeit]=&event[suche][group]=&event[suche][ed_textsearch]=&event[suche][ressort]=0&event[suche][plz]=89073&event[suche][umkreis]=10&event[suche][zeitraum]=TAG&frmDatum='"$HUMANDATE"'&sf[seldat]='"$TIMESTAMP"
 		'https://veranstaltungen.ulm.de/leoonline/portals/ulm/veranstaltungen/suche/neu/?search_from='"$HUMANDATE"
 		'https://stadthaus.ulm.de/kalender'
 		'http://www.ulmer-kalender.de/events/day/date/'"${HUMANDATE//-/.}"
@@ -406,7 +406,7 @@ function tweet_and_update() {
 									EVENTSUGGESTION=$(get_external_event_suggestion)
 									if [ -n "$EVENTSUGGESTION" ] ; then
 										echo "Tweeting event suggestion as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$$EVENTSUGGESTION"
+										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
 									fi
 									;;
 								*)	# catch-all, just do nothing here
