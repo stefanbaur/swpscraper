@@ -373,7 +373,7 @@ function tweet_and_update() {
 									fi
 									;;
 								3)	# let's show the current weather conditions
-									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +"%x %X"): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
 									;;
 								4)	# let's try local news
 									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
