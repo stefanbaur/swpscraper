@@ -61,7 +61,11 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 [ -z "$NATIONALNEWSURLMSG" ] && NATIONALNEWSURLMSG="Überregionale Erwähnung unserer Stadt"
 [ -z "$CITYGREP" ] && CITYGREP="Ulm\W|#Ulm"
 [ -z "$EVENTSUGGESTIONMSG" ] && EVENTSUGGESTIONMSG="Wie wäre es mit ein paar Veranstaltungstipps"
-[ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] && ALTERNATETWITTERCREDENTIALSFILE=""
+if [ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] ; then
+	ALTERNATETWITTERCREDENTIALSFILE=""
+else
+	[ -n "$ALTERNATETWITTERCOMMAND=" ] && ALTERNATETWITTERCOMMAND="$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE "
+fi
 
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
@@ -206,7 +210,8 @@ function tweet_and_update() {
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
 		# TODO FIXME: a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
-		TITLE=$(echo -e "$SCRAPEDPAGE" | grep '<.*title>' | tr -d '\n' | tr -s ' ' | sed -e 's/^.*<title>\(.*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?&():=-]/ /g')
+		TITLE=$(echo "$SCRAPEDPAGE" | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?&():=-]/ /g')
+
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
@@ -545,7 +550,7 @@ done
 
 if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
-	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
+	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$ALTERNATETWITTERCOMMAND -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
 	exit 1
 else
 	echo "Done."
