@@ -363,7 +363,7 @@ function tweet_and_update() {
 									if [ $(date +%H) -lt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -gt $TODAYEPOCH ]; then
 											LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
 											LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
-											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedayforecasttweet")'
+											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
 									fi
 									;;
 								2)	# let's try unrise and sunset
