@@ -350,7 +350,7 @@ function tweet_and_update() {
 						DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
 						LIFESIGNCOUNTER=0
 						while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
-							CHATTER=$((RANDOM%8))
+							CHATTER=$((RANDOM%7))
 							case $CHATTER in
 								0)	# let's try today's weather forecast
 									# due to time zone issues, weather forecasts don't work before 7am
@@ -372,10 +372,7 @@ function tweet_and_update() {
 											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
 									fi
 									;;
-								3)	# let's show the current weather conditions
-									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
-									;;
-								4)	# let's try local news
+								3)	# let's try local news
 									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
 									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (local news list scraper)"
 									sleep $NEWSSLEEP
@@ -386,7 +383,7 @@ function tweet_and_update() {
 										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EXTERNALLOCALNEWS"
 									fi
 									;;
-								5)	# let's try competitor news
+								4)	# let's try competitor news
 									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
 									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (competitor news list scraper)"
 									sleep $NEWSSLEEP
@@ -397,7 +394,7 @@ function tweet_and_update() {
 										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$COMPETITORNEWS"
 									fi
 									;;
-								6)	# let's try nation-wide news
+								5)	# let's try nation-wide news
 									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
 									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (national news list scraper)"
 									sleep $NEWSSLEEP
@@ -408,7 +405,7 @@ function tweet_and_update() {
 										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$NATIONWIDENEWS"
 									fi
 									;;
-								7)	# let's try local events
+								6)	# let's try local events
 									EVENTSUGGESTION=$(get_external_event_suggestion)
 									if [ -n "$EVENTSUGGESTION" ] ; then
 										echo "Tweeting event suggestion as lifesign."
@@ -422,6 +419,10 @@ function tweet_and_update() {
 									;;
 							esac
 						done
+
+						# with a 50% chance, let's show the current weather conditions
+						[ -z $LIFESIGN ] && [ $((RANDOM%2)) ] && LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+
 						# no luck, then use the default chatter message
 						[ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && LIFESIGN+=" $(date +"%x %X")"
 						echo -e "Lifesign message is: '$LIFESIGN'"
