@@ -418,6 +418,7 @@ function tweet_and_update() {
 									: # NOP
 									;;
 							esac
+							LIFESIGNCOUNTER=$((LIFESIGNCOUNTER+1))
 						done
 
 						# with a 50% chance, let's show the current weather conditions
