@@ -422,7 +422,7 @@ function tweet_and_update() {
 						done
 
 						# with a 50% chance, let's show the current weather conditions
-						[ -z $LIFESIGN ] && [ $((RANDOM%2)) ] && LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+						[ -z "$LIFESIGN" ] && [ $((RANDOM%2)) ] && LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
 
 						# no luck, then use the default chatter message
 						[ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && LIFESIGN+=" $(date +"%x %X")"
