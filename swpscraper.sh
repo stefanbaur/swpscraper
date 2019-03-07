@@ -414,8 +414,8 @@ function tweet_and_update() {
 											echo "Tweeting event suggestion as lifesign."
 											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
 										fi
-										;;
 									fi
+									;;
 								*)	# catch-all, just do nothing here
 									# either we'll hit a working entry with the next iteration,
 									# or we'll end up with the default chatter message
