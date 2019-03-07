@@ -147,6 +147,7 @@ function already_tweeted() {
 	local $LASTTWEET=$1
 	local $TITLE=$2
 	local $SINGLEURL=$3
+	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
 	if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
@@ -251,16 +252,19 @@ function tweet_and_update() {
 			# compose message
 			MESSAGE="${TITLE}${SINGLEURL}"
 
-			if [ $BACKOFF -eq 0 ]; then
-				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-				echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
-				sleep $RANDCHECKDELAY
-				LASTTWEET=$(determine_last_tweet "$USERAGENT")
-				# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-				if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
-					echo -e " - Already tweeted."
-					TWEETEDLINK=1
-				else
+			if [ $BACKOFF -lt 1 ]; then
+				if [ $BACKOFF -lt 0 ]; then
+					echo "We're in postponed tweet checking mode, so let's check if the tweet has shown up since."
+					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
+					sleep $RANDCHECKDELAY
+					LASTTWEET=$(determine_last_tweet "$USERAGENT")
+					if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
+						echo -e " - Already tweeted."
+						TWEETEDLINK=1
+					fi
+				fi
+				if ! [ $TWEETEDLINK -eq 1 ] ; then
 
 					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
@@ -271,7 +275,6 @@ function tweet_and_update() {
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
 					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
 					if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
 						echo -e " - Tweeted."
 						TWEETEDLINK=1
@@ -490,7 +493,7 @@ if [ -z "$(sqlite3 $DBFILE 'SELECT * FROM swphomepage ORDER BY timestamp DESC LI
 else
 	echo "Checking for postponed tweets ..."
 	URLLIST=$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp ASC')
-	BACKOFF=0
+	BACKOFF=-1
 	for SINGLEURL in $URLLIST; do
 		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
 	done
