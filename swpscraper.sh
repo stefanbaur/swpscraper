@@ -354,13 +354,13 @@ function tweet_and_update() {
 							case $CHATTER in
 								0)	# let's try today's weather forecast
 									# due to time zone issues, weather forecasts don't work before 7am
-									if [ $(date +%H) -lt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									if [ $(date +%H) -gt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
 											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
 											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
 									fi
 									;;
 								1)	# let's try a five-day weather forecast
-									if [ $(date +%H) -lt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ]; then
+									if [ $(date +%H) -gt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ]; then
 											LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
 											LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
 											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
