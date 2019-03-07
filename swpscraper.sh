@@ -143,6 +143,23 @@ function determine_last_tweet() {
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
 
+function already_tweeted() {
+	local $LASTTWEET=$1
+	local $TITLE=$2
+	local $SINGLEURL=$3
+	if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
+		# Mark as tweeted
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
+		return 0
+	else
+		# Mark as not yet tweeted
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfailedtweet")'
+		return 1
+	fi
+}
+
 function scrape_page() {
 
 	local URL=$1
@@ -235,35 +252,37 @@ function tweet_and_update() {
 			MESSAGE="${TITLE}${SINGLEURL}"
 
 			if [ $BACKOFF -eq 0 ]; then
-				echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
-				sleep $RANDDELAY
-				# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
-				# that's why we need to perform a webscrape to check if our tweet went out
-				echo "$MESSAGE" | eval "$TWITTER"
 				RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 				echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 				sleep $RANDCHECKDELAY
 				LASTTWEET=$(determine_last_tweet "$USERAGENT")
 				# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-				if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
-					# Add entry to table
-					echo -e " - Tweeted."
-					sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
-					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
+				if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
+					echo -e " - Already tweeted."
 					TWEETEDLINK=1
 				else
-					# unable to spot my own tweet!
-					echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
-					sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
-					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfailedtweet")'
-					echo -e "--------------" >> swpscraper.error
-					echo -e "$CHECKFORTWEET" >> swpscraper.error
-					echo -e "--------------" >> swpscraper.error
-					echo -e "$TITLE" >>swpscraper.error
-					echo -e "--------------" >> swpscraper.error
-					echo -e "$CHECKFORTWEET" | grep "$TITLE" >>swpscraper.error
-					echo -e "--------------" >> swpscraper.error
-					BACKOFF=1
+
+					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
+					sleep $RANDDELAY
+					# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
+					# that's why we need to perform a webscrape to check if our tweet went out
+					echo "$MESSAGE" | eval "$TWITTER"
+					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
+					sleep $RANDCHECKDELAY
+					LASTTWEET=$(determine_last_tweet "$USERAGENT")
+					# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
+					if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
+						echo -e " - Tweeted."
+						TWEETEDLINK=1
+					else
+						# unable to spot my own tweet!
+						echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+						echo -e "--------------" >> swpscraper.error
+						echo -e "$TITLE" >>swpscraper.error
+						echo -e "--------------" >> swpscraper.error
+						BACKOFF=1
+					fi
 				fi
 			else
 				sleep 1
