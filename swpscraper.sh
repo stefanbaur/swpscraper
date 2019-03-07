@@ -133,13 +133,19 @@ function get_external_news_infos() {
 
 function determine_last_tweet() {
 	local USERAGENT=$1
+	local LONGCHECK=$2
 	local TWEETTIME
 	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
 	SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
 	TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
-	# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-	TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+	if [ -n "$LONGCHECK" ]; then
+		# Let's dump all we have
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize")
+	else
+		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+	fi
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
 
@@ -253,11 +259,11 @@ function tweet_and_update() {
 
 			if [ $BACKOFF -lt 1 ]; then
 				if [ $BACKOFF -lt 0 ]; then
-					echo "We're in postponed tweet checking mode, so let's check if the tweet has shown up since."
+					echo "We're in postponed tweet checking mode, so let's check if the tweet '$TITLE' has shown up since."
 					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
-					LASTTWEET=$(determine_last_tweet "$USERAGENT")
+					LASTTWEET=$(determine_last_tweet "$USERAGENT" "postponed")
 					if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
 						echo -e " - Already tweeted."
 						TWEETEDLINK=1
@@ -560,6 +566,7 @@ else
 	: # NOP
 fi
 
+BACKOFF=0
 for SINGLEURL in $URLLIST; do
 
 	# IMPORTANT: String must be filtered for valid chars to block SQL injection and shell injection
