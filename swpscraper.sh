@@ -148,7 +148,7 @@ function already_tweeted() {
 	local TITLE=$2
 	local SINGLEURL=$3
 	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-	if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
+	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
@@ -229,7 +229,6 @@ function tweet_and_update() {
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
 		# TODO FIXME: a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
 		TITLE=$(echo "$SCRAPEDPAGE" | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?&():=-]/ /g')
-
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
