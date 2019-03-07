@@ -406,12 +406,16 @@ function tweet_and_update() {
 									fi
 									;;
 								6)	# let's try local events
-									EVENTSUGGESTION=$(get_external_event_suggestion)
-									if [ -n "$EVENTSUGGESTION" ] ; then
-										echo "Tweeting event suggestion as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
+									# doesn't really make sense past 20:00, unless Friday (5) or Saturday (6) (Sunday would be 0)
+									# if we wanted to get really fancy, we could add a "is the next day a public holiday" detection
+									if [ $(date +%H) -lt 20 ] || [ $(date +%w) -gt 4 ]; then
+										EVENTSUGGESTION=$(get_external_event_suggestion)
+										if [ -n "$EVENTSUGGESTION" ] ; then
+											echo "Tweeting event suggestion as lifesign."
+											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
+										fi
+										;;
 									fi
-									;;
 								*)	# catch-all, just do nothing here
 									# either we'll hit a working entry with the next iteration,
 									# or we'll end up with the default chatter message
