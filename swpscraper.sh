@@ -144,9 +144,9 @@ function determine_last_tweet() {
 }
 
 function already_tweeted() {
-	local $LASTTWEET=$1
-	local $TITLE=$2
-	local $SINGLEURL=$3
+	local LASTTWEET=$1
+	local TITLE=$2
+	local SINGLEURL=$3
 	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
 	if (echo "$LASTTWEET" | grep -q "$(echo $TITLE)") ; then
 		# Mark as tweeted
