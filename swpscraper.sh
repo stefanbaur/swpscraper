@@ -258,7 +258,7 @@ function tweet_and_update() {
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
 					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
+					if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
 						echo -e " - Already tweeted."
 						TWEETEDLINK=1
 					fi
@@ -274,7 +274,7 @@ function tweet_and_update() {
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
 					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					if already_tweeted "$LASTTWEET" "$TITLE" "SINGLEURL" ; then
+					if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
 						echo -e " - Tweeted."
 						TWEETEDLINK=1
 					else
