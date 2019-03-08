@@ -208,22 +208,22 @@ function tweet_and_update() {
 		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
 			echo "Skipping '$SINGLEURL' - video-only page detected."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","videoonly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains '<meta property="og:type" content="image">' - this is an image-gallery-only page
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="image">' ; then
 			echo "Skipping '$SINGLEURL' - image-gallery-only page detected."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","galleryonly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' nor 'class="btn btn-primary more"' - this is probably a ticker-only page
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","tickeronly)'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page timestamps are all older than 24h
 		elif [ $(echo -e "$PUBTIME"| sort -un | tail -n 1) -lt $(date -d '-24 hours' +%s) ]; then
 			echo "Skipping '$SINGLEURL' - all timestamps are older than 24h.  Slow news day, eh?"
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","skip")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","oldnews")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
 	fi
