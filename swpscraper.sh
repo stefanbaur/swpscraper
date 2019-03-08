@@ -483,6 +483,11 @@ fi
 [ -z "$(sqlite3 $DBFILE '.tables state')" ] && sqlite3 $DBFILE 'CREATE TABLE state (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, status data_type PRIMARY KEY)'
 [ -z "$(sqlite3 $DBFILE '.tables externalurls')" ] && sqlite3 $DBFILE 'CREATE TABLE externalurls (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, externalurl data_type PRIMARY KEY)'
 
+# make sure table swphomepage has a "reasons" column
+if ! sqlite3 $DBNAME 'PRAGMA table_info(swphomepage)' | grep -q '|reason|'; then
+	sqlite3 $DBNAME 'ALTER TABLE swphomepage ADD COLUMN reason'
+fi
+
 # this is to purge entries older than 14 days (to keep the database small)
 sqlite3 $DBFILE 'delete from swphomepage where timestamp < datetime("now","-14 days")'
 sqlite3 $DBFILE 'delete from externalurls where timestamp < datetime("now","-14 days")'
