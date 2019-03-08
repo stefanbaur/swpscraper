@@ -210,6 +210,7 @@ function heartbeat() {
 	local TWEETEDLINK
 	local USERAGENT=$1
 	local PRIMETABLE=$2
+	local LASTTWEETDB
 	local LASTTWEET
 	local LTT
 	local NOW
@@ -222,13 +223,11 @@ function heartbeat() {
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
 		# Determine last tweet time
 		if !  [ "$PRIMETABLE" = "yes" ] ; then
+
+
+sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
 			# Note that the blank *after* the " is important! date will throw an error if the result of $(...) is empty and there is no blank in the "" ...
-			LASTTWEET=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
-			if [ -n "$LASTTWEET" ] ; then
-				LTT=$LASTTWEET
-			else
-				LTT=$(date -d "-3 hours" +%s)
-			fi
+			LASTTWEETDB=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
 			NOW=$(date -R)
 			ONEHAGO=$(date -d "$NOW -1 hour" +%s)
 			LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
@@ -241,8 +240,16 @@ function heartbeat() {
 			fi
 			#echo "Last Tweet Time: '$LTT'"
 			#echo "Time one hour ago: '$ONEHAGO'"
-			if [ $LTT -lt $ONEHAGO ] ; then
-				echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
+			if [ $LASTTWEETDB -lt $ONEHAGO ] ; then
+				echo "Last logged regular Tweet (not counting lifesigns) was more than 1 h ago (Tweet in DB: '$(date -d "@$LASTTWEETDB" +%X)' | Now: '$(date -d "$NOW" +%X)')"
+				echo "Determining timestamp of last visible tweet ..."
+				LASTTWEET=$(determine_last_tweet "$USERAGENT")
+				LTT=${LASTTWEET/|*}
+			else
+				LTT=$LASTTWEET
+			fi
+			if [ $LLT -lt $ONEHAGO ] ; then
+				echo "Last visible Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 				if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 					echo "Tweeting lifesign."
 					local CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/ - /\n/g')
@@ -358,6 +365,7 @@ function heartbeat() {
 
 					eval "$TWITTER -status=\"$LIFESIGN\""
 					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
+
 				else
 					echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
 					return 1
