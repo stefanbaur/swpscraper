@@ -75,27 +75,54 @@ function get_external_event_suggestion() {
 	local STATUS
 	local TIMESTAMP=$(date -d "$(date -d 'today' +%F)" +%s)
 	local HUMANDATE=$(date +%x)
+	local ISODATE=$(date +%F)
 	local EVENTURLSARRAY=(
 		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event[suche][pager]=&event[suche][kalender-tag]='"$TIMESTAMP"'&event[suche][mstmp]='"$TIMESTAMP"'&event[suche][stmpflag]=tag&event[suche][start]=0&event[suche][vwnum]=&event[suche][suchen]=0&event[suche][veranstalter]=&event[suche][land]=DE&event[suche][uhrzeit]=&event[suche][group]=&event[suche][ed_textsearch]=&event[suche][ressort]=0&event[suche][plz]=89073&event[suche][umkreis]=10&event[suche][zeitraum]=TAG&frmDatum='"$HUMANDATE"'&sf[seldat]='"$TIMESTAMP"
 		'https://veranstaltungen.ulm.de/leoonline/portals/ulm/veranstaltungen/suche/neu/?search_from='"$HUMANDATE"
 		'https://stadthaus.ulm.de/kalender'
 		'http://www.ulmer-kalender.de/events/day/date/'"${HUMANDATE//-/.}"
+		'https://www.regioactive.de/events/25209/ulm/veranstaltungen-party-konzerte/'"$ISODATE"
+		'https://veranstaltungen.meinestadt.de/ulm'
+		'https://www.donau3fm.de/events'
+		'https://www.theater-ulm.de/spielplan'
+		'http://theater-neu-ulm.de/cmsroot/spielplan/'
+		'http://www.frizz-ulm.de/events/'
+		'https://www.uni-ulm.de/home/sitemap/kalender/'
+		'http://ulm.partyphase.net/veranstaltungskalender-ulm/'
+
 			     )
 	local EVENTSOURCEARRAY=(
 			'aus dem Veranstaltungskalender der Südwest Presse (@SWPde)'
 			'aus dem Veranstaltungskalender der Stadt Ulm (@ulm_donau)'
 			'vom Stadthaus Ulm (@stadthaus_ulm)'
 			'aus dem Veranstaltungskalender von Ulm-News (@ulmnews)'
+			'aus dem Veranstaltungskalender von regioactive (@regioactive)'
+			'aus dem Veranstaltungskalender von meinestadt.de (@meinestadt_de)'
+			'aus dem Veranstaltungskalender von Donau 3 FM (@donau3fm)'
+			'aus dem Spielplan des Theaters Ulm (@TheaterUlm)'
+			'aus dem Spielplan des Theaters Neu-Ulm (AuGuSTheater)'
+			'aus dem Veranstaltungskalender von Frizz Ulm'
+			'aus dem Veranstaltungskalender der Universität Ulm (@uni_ulm)'
+                        'aus dem Veranstaltungskalender von Partyphase (@partyphase)'
 			       )
 	local EVENTTAGSARRAY=(
 			'#SüdwestPresse #SWP #Veranstaltungskalender'
 			'#StadtUlm #Stadt #Ulm #Veranstaltungskalender'
 			'#StadthausUlm #Stadthaus #Ulm #Veranstaltungen'
 			'#UlmNews #Ulm #Veranstaltungskalender'
+			'#regioactive #Ulm #Veranstaltungskalender'
+			'#meinestadt_de #meinestadtde #meinestadt #Ulm #Veranstaltungskalender'
+			'#donau3fm #donau3 #Ulm #Veranstaltungskalender'
+			'#TheaterUlm #Theater #Ulm #Spielplan'
+			'#TheaterNeuUlm #Theater #NeuUlm #AuGuSTheater #Spielplan'
+			'#FrizzUlm #Frizz #Ulm #Veranstaltungskalender'
+			'#UniversitaetUlm #UniUlm #Ulm #Veranstaltungskalender'
+			'#PartyphaseUlm #Partyphase #Ulm #Veranstaltungskalender'
 			       )
 	for EVENTURL in ${EVENTURLSARRAY[*]}; do
 		# if not yet stored or entry older than today
 		if [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM externalurls WHERE externalurl="'$EVENTURL'" LIMIT 1')" ] || \
+# TODO add a randomizer and 12h block here
 			[ $(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM externalurls WHERE externalurl = "'$EVENTURL'" ORDER BY timestamp DESC LIMIT 1')" +%s) -lt $(date -d "$(date +%F)" +%s) ] ; then
 			echo "$EVENTSUGGESTIONMSG ${EVENTSOURCEARRAY[$SOURCECOUNTER]}? ${EVENTTAGSARRAY[$SOURCECOUNTER]} $EVENTURL"
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO externalurls ('externalurl') VALUES ("'$EVENTURL'")'
