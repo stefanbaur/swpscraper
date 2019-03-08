@@ -314,8 +314,9 @@ function tweet_and_update() {
 	else
 		# This should update the timestamp so the entry is marked as recent and won't get purged
 		TWEETSTATE="$(sqlite3 $DBFILE 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
+		REASON="$(sqlite3 $DBFILE 'SELECT reason FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		sleep 1 # make sure timestamps are always at least 1s apart
-		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted,reason) VALUES ("'$SINGLEURL'","'$TWEETSTATE'","'$REASON'")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
 	fi
 
