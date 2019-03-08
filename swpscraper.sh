@@ -232,7 +232,7 @@ function heartbeat() {
 				LASTTWEET=$(determine_last_tweet "$USERAGENT")
 				LTT=${LASTTWEET/|*}
 			else
-				LTT=$LASTTWEET
+				LTT=$LASTTWEETDB
 			fi
 			if [ $LLT -lt $ONEHAGO ] ; then
 				echo "Last visible Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
