@@ -508,9 +508,9 @@ if ! sqlite3 $DBFILE 'PRAGMA table_info(swphomepage)' | grep -q '|reason|'; then
 	sqlite3 $DBFILE 'ALTER TABLE swphomepage ADD COLUMN reason'
 fi
 
-# this is to purge entries older than 14 days (to keep the database small)
-sqlite3 $DBFILE 'delete from swphomepage where timestamp < datetime("now","-14 days")'
-sqlite3 $DBFILE 'delete from externalurls where timestamp < datetime("now","-14 days")'
+# this is to purge entries older than 8 days (to keep the database small)
+sqlite3 $DBFILE 'delete from swphomepage where timestamp < datetime("now","-8 days")'
+sqlite3 $DBFILE 'delete from externalurls where timestamp < datetime("now","-8 days")'
 
 # reset lifesigncheck
 sqlite3 $DBFILE 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
