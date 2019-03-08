@@ -388,8 +388,8 @@ function tweet_and_update() {
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","tickeronly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page timestamps are all older than 24h
-		elif [ $(echo -e "$PUBTIME"| sort -un | tail -n 1) -lt $(date -d '-24 hours' +%s) ]; then
-			echo "Skipping '$SINGLEURL' - all timestamps are older than 24h.  Slow news day, eh?"
+		elif [ $(echo -e "$PUBTIME"| sort -un | tail -n 1) -lt $(date -d '-48 hours' +%s) ]; then
+			echo "Skipping '$SINGLEURL' - all timestamps are older than 48h.  Slow news day, eh?"
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","oldnews")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
