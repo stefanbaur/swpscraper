@@ -208,22 +208,22 @@ function tweet_and_update() {
 		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
 			echo "Skipping '$SINGLEURL' - video-only page detected."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","videoonly")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","videoonly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains '<meta property="og:type" content="image">' - this is an image-gallery-only page
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="image">' ; then
 			echo "Skipping '$SINGLEURL' - image-gallery-only page detected."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","galleryonly")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","galleryonly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page contains NEITHER '<div class="carousel' nor '<div class="image">' nor 'class="btn btn-primary more"' - this is probably a ticker-only page
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","tickeronly")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","tickeronly")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		# Page timestamps are all older than 24h
 		elif [ $(echo -e "$PUBTIME"| sort -un | tail -n 1) -lt $(date -d '-24 hours' +%s) ]; then
 			echo "Skipping '$SINGLEURL' - all timestamps are older than 24h.  Slow news day, eh?"
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reasons') VALUES ("'$SINGLEURL'","skip","oldnews")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","oldnews")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
 	fi
@@ -483,7 +483,7 @@ fi
 [ -z "$(sqlite3 $DBFILE '.tables state')" ] && sqlite3 $DBFILE 'CREATE TABLE state (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, status data_type PRIMARY KEY)'
 [ -z "$(sqlite3 $DBFILE '.tables externalurls')" ] && sqlite3 $DBFILE 'CREATE TABLE externalurls (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, externalurl data_type PRIMARY KEY)'
 
-# make sure table swphomepage has a "reasons" column
+# make sure table swphomepage has a "reason" column
 if ! sqlite3 $DBFILE 'PRAGMA table_info(swphomepage)' | grep -q '|reason|'; then
 	sqlite3 $DBFILE 'ALTER TABLE swphomepage ADD COLUMN reason'
 fi
