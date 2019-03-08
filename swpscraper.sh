@@ -234,7 +234,7 @@ function heartbeat() {
 			else
 				LTT=$LASTTWEETDB
 			fi
-			if [ $LLT -lt $ONEHAGO ] ; then
+			if [ $LTT -lt $ONEHAGO ] ; then
 				echo "Last visible Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 				echo "Tweeting lifesign."
 				local CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/ - /\n/g')
