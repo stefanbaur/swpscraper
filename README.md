@@ -5,9 +5,10 @@ Needs: curl echo tr bash sleep sqlite3 wget grep sed awk test lynx uniq oysttyer
 
 Note: Oysttyer can be git cloned from https://github.com/oysttyer/oysttyer.git
 
-TODO: try to handle everything with curl, or at least replace wget with curl; place swpscraper.sh in /usr/local/bin/ or similar, add cron job (be sure to check if script is already running, you don't want multiple instances)
+TODO: try to handle everything with curl, or at least replace wget with curl; place swpscraper.sh in /usr/local/bin/ or similar, add cron job (be sure to check if script is already running, you don't want multiple instances), check why URLLIST still isn't unique, 
 
-Ideas for the future: split script in half - one for scraping and updating the DB, one for selecting URLs from the DB and tweeting them; use xmlstarlet for scraping instead of lynx -dump - might allow better selection of what is a headline link and what not.
+
+Ideas for the future: split script in half - one for scraping and updating the DB, one for selecting URLs from the DB and tweeting them; use xmlstarlet for scraping instead of lynx -dump - might allow better selection of what is a headline link and what not. Also, actual articles (as opposed to galleries and videos) have a json block with datePublished, dateModified, and image (this is the preview image Twitter grabs).  If the image tag contains "opengraphlogo.png", it's an article without an actual image, so it can be skipped. Parsing this json block might make it easier to tell which articles should be tweeted and which not. Another criteria could be if the page text contains the strings "Symbolbild" or "Symbolfoto".
 
 Questions, suggestions, etc.: https://twitter.com/farbenstau
 
