@@ -195,7 +195,8 @@ function heartbeat() {
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
 		# Determine last tweet time
 		if !  [ "$PRIMETABLE" = "yes" ] ; then
-			LASTTWEET=$(date -d"$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
+			# Note that the blank *after* the " is important! date will throw an error if the result of $(...) is empty and there is no blank in the "" ...
+			LASTTWEET=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
 			if [ -n "$LASTTWEET" ] ; then
 				LTT=$LASTTWEET
 			else
@@ -217,7 +218,6 @@ function heartbeat() {
 				echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 				if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
 					echo "Tweeting lifesign."
-# TODO add local prefix to all vars here
 					local CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/ - /\n/g')
 					local CW=$(echo -e "$CURRENTWEATHER" | awk '$0 ~ /Current weather in Ulm/ { $1=$2=$3=$4="" ; print $0 }')
 					local SUNRISE=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunrise/ { $1=""; print $0}')
@@ -475,8 +475,9 @@ function tweet_and_update() {
 	else
 		# This should update the timestamp so the entry is marked as recent and won't get purged
 		TWEETSTATE="$(sqlite3 $DBFILE 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
+		REASON="$(sqlite3 $DBFILE 'SELECT reason FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		sleep 1 # make sure timestamps are always at least 1s apart
-		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted) VALUES ("'$SINGLEURL'","'$TWEETSTATE'")'
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted,reason) VALUES ("'$SINGLEURL'","'$TWEETSTATE'","'$REASON'")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
 	fi
 
