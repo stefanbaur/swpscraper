@@ -307,13 +307,13 @@ function heartbeat() {
 								if [ $(date +%H) -gt 7 ] ; then
 									echo "Current hour was less than 7"
 								fi
-								echo "LASTFIVEDAYFORECASTEPOCH: '$LASTFIVEDAYFORECASTEPOCH'"
-								if [ -n "$LASTFIVEDAYFORECASTEPOCH" ] ; then
+								echo "LASTFIVEDAYSFORECASTEPOCH: '$LASTFIVEDAYSFORECASTEPOCH'"
+								if [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] ; then
 									echo  'LASTFIVEDAYFORECASTEPOCH was not empty.'
 								fi
 								echo "TODAYEPOCH: '$TODAYEPOCH'"
-								if [ $LASTFIVEDAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
-									echo 'LASTFIVEDAYFORECASTEPOCH was less than TODAYEPOCH'
+								if [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTFIVEDAYSFORECASTEPOCH was less than TODAYEPOCH'
 								fi
 							fi
 							;;
