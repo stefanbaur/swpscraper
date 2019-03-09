@@ -224,13 +224,18 @@ function heartbeat() {
 			LASTTWEETDB=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
 			NOW=$(date -R)
 			ONEHAGO=$(date -d "$NOW -1 hour" +%s)
-			#echo "Last Tweet Time: '$LTT'"
+			#echo "Last Tweet Time according to DB: '$LASTTWEETDB'"
 			#echo "Time one hour ago: '$ONEHAGO'"
 			if [ $LASTTWEETDB -lt $ONEHAGO ] ; then
 				echo "Last logged regular Tweet (not counting lifesigns) was more than 1 h ago (Tweet in DB: '$(date -d "@$LASTTWEETDB" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 				echo "Determining timestamp of last visible tweet ..."
 				LASTTWEET=$(determine_last_tweet "$USERAGENT")
 				LTT=${LASTTWEET/|*}
+				if [ $LASTTWEETDB -lt $LTT ] ; then
+					echo "Updating timestamp to timestamp of actual last visible tweet ($(date -d "@$LTT" +"%F %X"))"
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('timestamp','status') VALUES (datetime("'$LTT'","unixepoch"),"lastvisibletweet")'
+				fi
+
 			else
 				LTT=$LASTTWEETDB
 			fi
@@ -264,12 +269,29 @@ function heartbeat() {
 				local LIFESIGNCOUNTER=0
 				while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
 					local CHATTER=$((RANDOM%7))
+					echo "CHATTER: '$CHATTER'"
 					case $CHATTER in
 						0)	# let's try today's weather forecast
 							# due to time zone issues, weather forecasts don't work before 7am
 							if [ $(date +%H) -gt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
+							else
+								echo 'Unable to use weather forecast of today.'
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -gt 7 ] ; then
+									echo "Current hour was greater than 7"
+								else
+									echo "Current hour was less than 7"
+								fi
+								echo "LASTTODAYFORECASTEPOCH: '$LASTTODAYFORECASTEPOCH'"
+								if [ -n "$LASTTODAYFORECASTEPOCH" ] ; then
+									echo  'LASTTODAYFORECASTEPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTTODAYFORECASTEPOCH was less than TODAYEPOCH'
+								fi
 							fi
 							;;
 						1)	# let's try a five-day weather forecast
@@ -277,12 +299,37 @@ function heartbeat() {
 									LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
 									LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
+							else
+								echo 'Unable to use five-day weather forecast.'
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -gt 7 ] ; then
+									echo "Current hour was less than 7"
+								fi
+								echo "LASTFIVEDAYFORECASTEPOCH: '$LASTTODAYFORECASTEPOCH'"
+								if [ -n "$LASTFIVEDAYFORECASTEPOCH" ] ; then
+									echo  'LASTFIVEDAYFORECASTEPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTFIVEDAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTFIVEDAYFORECASTEPOCH was less than TODAYEPOCH'
+								fi
 							fi
 							;;
 						2)	# let's try unrise and sunset
 							if [ -n "$LASTSUNRISESUNSETEPOCH" ] && [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
+							else
+								echo 'Unable to use last sunriese/sunset today.'
+								echo "LASTSUNRISESUNSETEPOCH: '$LASTTODAYFORECASTEPOCH'"
+								if [ -n "$LASTTODAYFORECASTEPOCH" ] ; then
+									echo  'LASTSUNRISESUNSETPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTSUNRISESUNSETEPOCH was less than TODAYEPOCH'
+								fi
+
 							fi
 							;;
 						3)	# let's try local news
@@ -294,6 +341,8 @@ function heartbeat() {
 							if [ -n "$EXTERNALLOCALNEWS" ] ; then
 								echo "Tweeting latest external local news as lifesign."
 								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EXTERNALLOCALNEWS"
+							else
+								echo "External local news list came up empty."
 							fi
 							;;
 						4)	# let's try competitor news
@@ -305,6 +354,8 @@ function heartbeat() {
 							if [ -n "$COMPETITORNEWS" ] ; then
 								echo "Tweeting latest competitor news as lifesign."
 								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$COMPETITORNEWS"
+							else
+								echo "Competitor news list came up empty."
 							fi
 							;;
 						5)	# let's try nation-wide news
@@ -316,6 +367,8 @@ function heartbeat() {
 							if [ -n "$NATIONWIDENEWS" ] ; then
 								echo "Tweeting last external national news as lifesign."
 								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$NATIONWIDENEWS"
+							else
+								echo "National news list came up empty."
 							fi
 							;;
 						6)	# let's try local events
@@ -326,6 +379,16 @@ function heartbeat() {
 								if [ -n "$EVENTSUGGESTION" ] ; then
 									echo "Tweeting event suggestion as lifesign."
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
+								else
+									echo "Event suggestion list came up empty."
+								fi
+							else
+								echo "Too late in the day to tweet event suggestions."
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -lt 20 ] ; then
+									echo "Current hour was less than 20"
+								else
+									echo "Current hour was greater than 20"
 								fi
 							fi
 							;;
