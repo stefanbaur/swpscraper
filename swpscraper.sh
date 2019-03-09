@@ -261,9 +261,11 @@ function heartbeat() {
 				local THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 				# chatter
 				local TODAYEPOCH=$(date -d "$(date +%F)" +%s)
+				local THREEHOURSAGOEPOCH=$(date -d '-3 hours' +%s)
 				local LASTTODAYFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 				local LASTFIVEDAYSFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 				local LASTSUNRISESUNSETEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+				local LASTEVENTSEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasteventstweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 
 				local DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
 				local LIFESIGNCOUNTER=0
@@ -273,7 +275,7 @@ function heartbeat() {
 					case $CHATTER in
 						0)	# let's try today's weather forecast
 							# due to time zone issues, weather forecasts don't work before 7am
-							if [ $(date +%H) -gt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+							if [ $(date +%H) -gt 7 ] && ( [ -z "$LASTTODAYFORECASTEPOCH" ] || [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ); then
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
 							else
@@ -295,7 +297,7 @@ function heartbeat() {
 							fi
 							;;
 						1)	# let's try a five-day weather forecast
-							if [ $(date +%H) -gt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ]; then
+							if [ $(date +%H) -gt 7 ] && ( [ -z "$LASTFIVEDAYSFORECASTEPOCH" ] || [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ); then
 									LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
 									LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
@@ -316,7 +318,7 @@ function heartbeat() {
 							fi
 							;;
 						2)	# let's try unrise and sunset
-							if [ -n "$LASTSUNRISESUNSETEPOCH" ] && [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
+							if [ -z "$LASTSUNRISESUNSETEPOCH" ] || [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
 							else
@@ -374,7 +376,8 @@ function heartbeat() {
 						6)	# let's try local events
 							# doesn't really make sense past 20:00, unless Friday (5) or Saturday (6) (Sunday would be 0)
 							# if we wanted to get really fancy, we could add a "is the next day a public holiday" detection
-							if [ $(date +%H) -lt 20 ] || [ $(date +%w) -gt 4 ]; then
+							if ([ $(date +%H) -lt 20 ] || [ $(date +%w) -gt 4 ]) && \
+								([ -z "$LASTEVENTSEPOCH" ] || [ $LASTEVENTSEPOCH -lt $THREEHOURSAGOEPOCH ] ); then
 								EVENTSUGGESTION=$(get_external_event_suggestion)
 								if [ -n "$EVENTSUGGESTION" ] ; then
 									echo "Tweeting event suggestion as lifesign."
