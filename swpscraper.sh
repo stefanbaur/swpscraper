@@ -382,6 +382,7 @@ function heartbeat() {
 								if [ -n "$EVENTSUGGESTION" ] ; then
 									echo "Tweeting event suggestion as lifesign."
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
+									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasteventstweet")'
 								else
 									echo "Event suggestion list came up empty."
 								fi
