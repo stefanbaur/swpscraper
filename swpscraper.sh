@@ -293,6 +293,8 @@ function heartbeat() {
 								echo "TODAYEPOCH: '$TODAYEPOCH'"
 								if [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
 									echo 'LASTTODAYFORECASTEPOCH was less than TODAYEPOCH'
+								else
+									echo 'LASTTODAYFORECASTEPOCH was more than TODAYEPOCH'
 								fi
 							fi
 							;;
@@ -314,6 +316,8 @@ function heartbeat() {
 								echo "TODAYEPOCH: '$TODAYEPOCH'"
 								if [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ; then
 									echo 'LASTFIVEDAYSFORECASTEPOCH was less than TODAYEPOCH'
+								else
+									echo 'LASTFIVEDAYSFORECASTEPOCH was more than TODAYEPOCH'
 								fi
 							fi
 							;;
@@ -329,6 +333,8 @@ function heartbeat() {
 								fi
 								echo "TODAYEPOCH: '$TODAYEPOCH'"
 								if [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTSUNRISESUNSETEPOCH was less than TODAYEPOCH'
+								else
 									echo 'LASTSUNRISESUNSETEPOCH was less than TODAYEPOCH'
 								fi
 
@@ -387,13 +393,25 @@ function heartbeat() {
 									echo "Event suggestion list came up empty."
 								fi
 							else
-								echo "Too late in the day to tweet event suggestions."
+								echo "Too late in the day to tweet event suggestions or last event suggestion less than 3h ago."
 								echo "Current hour: '$(date +%H)'"
 								if [ $(date +%H) -lt 20 ] ; then
 									echo "Current hour was less than 20"
 								else
 									echo "Current hour was greater than 20"
 								fi
+								if [ -z "$LASTEVENTSEPOCH" ]; then
+									echo "LASTEVENTSEPOCH was empty."
+								else
+							 		echo "LASTEVENTSEPOCH was: '$LASTEVENTSEPOCH'"
+								fi
+								echo "THREEHOURSAGOEPOCH: '$THREEHOURSAGOEPOCH'"
+								if	[ $LASTEVENTSEPOCH -lt $THREEHOURSAGOEPOCH ] ; then
+									echo 'LASTEVENTSEPOCH was less than TODAYEPOCH'
+								else 
+									echo 'LASTEVENTSEPOCH was more than TODAYEPOCH'
+								fi
+
 							fi
 							;;
 						*)	# catch-all, just do nothing here
