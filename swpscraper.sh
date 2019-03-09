@@ -97,7 +97,7 @@ function get_external_event_suggestion() {
 			'vom Stadthaus Ulm (@stadthaus_ulm)'
 			'aus dem Veranstaltungskalender von Ulm-News (@ulmnews)'
 			'aus dem Veranstaltungskalender von regioactive (@regioactive)'
-			'aus dem Veranstaltungskalender von meinestadt.de (@meinestadt_de)'
+			'aus dem Veranstaltungskalender von meinestadt․de (@meinestadt_de)'
 			'aus dem Veranstaltungskalender von Donau 3 FM (@donau3fm)'
 			'aus dem Spielplan des Theaters Ulm (@TheaterUlm)'
 			'aus dem Spielplan des Theaters Neu-Ulm (AuGuSTheater)'
@@ -261,8 +261,8 @@ function heartbeat() {
 				local THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
 				# chatter
 				local TODAYEPOCH=$(date -d "$(date +%F)" +%s)
-				local LASTTODAYFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-				local LASTFIVEDAYSFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+				local LASTTODAYFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+				local LASTFIVEDAYSFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 				local LASTSUNRISESUNSETEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
 
 				local DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
@@ -305,7 +305,7 @@ function heartbeat() {
 								if [ $(date +%H) -gt 7 ] ; then
 									echo "Current hour was less than 7"
 								fi
-								echo "LASTFIVEDAYFORECASTEPOCH: '$LASTTODAYFORECASTEPOCH'"
+								echo "LASTFIVEDAYFORECASTEPOCH: '$LASTFIVEDAYFORECASTEPOCH'"
 								if [ -n "$LASTFIVEDAYFORECASTEPOCH" ] ; then
 									echo  'LASTFIVEDAYFORECASTEPOCH was not empty.'
 								fi
@@ -321,8 +321,8 @@ function heartbeat() {
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
 							else
 								echo 'Unable to use last sunriese/sunset today.'
-								echo "LASTSUNRISESUNSETEPOCH: '$LASTTODAYFORECASTEPOCH'"
-								if [ -n "$LASTTODAYFORECASTEPOCH" ] ; then
+								echo "LASTSUNRISESUNSETEPOCH: '$LASTSUNRISESUNSETEPOCH'"
+								if [ -n "$LASTSUNRISESUNSETEPOCH" ] ; then
 									echo  'LASTSUNRISESUNSETPOCH was not empty.'
 								fi
 								echo "TODAYEPOCH: '$TODAYEPOCH'"
