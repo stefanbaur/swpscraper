@@ -320,7 +320,7 @@ function heartbeat() {
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
 							else
-								echo 'Unable to use last sunriese/sunset today.'
+								echo 'Unable to use last sunrise/sunset today.'
 								echo "LASTSUNRISESUNSETEPOCH: '$LASTSUNRISESUNSETEPOCH'"
 								if [ -n "$LASTSUNRISESUNSETEPOCH" ] ; then
 									echo  'LASTSUNRISESUNSETPOCH was not empty.'
