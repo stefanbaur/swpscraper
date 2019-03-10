@@ -271,6 +271,7 @@ function heartbeat() {
 				local LIFESIGNCOUNTER=0
 				while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
 					local CHATTER=$((RANDOM%7))
+					# local CHATTER=$(wget -q -O - 'http://www.miraclesalad.com/webtools/random.php?i=1&u=1&low=1&high=6&groups=1&Submit=Go' | grep '<p class="output">' | awk -F'>|<' '{ print $3}' | tr -d -c '[:digit:]')
 					echo "CHATTER: '$CHATTER'"
 					case $CHATTER in
 						0)	# let's try today's weather forecast
