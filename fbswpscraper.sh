@@ -1,4 +1,14 @@
 #!/bin/bash
+
+# source config
+. ./fbswpscraper.config
+
+# Path and file name for sqlite database
+[ -z "$DBFILE" ] && DBFILE="/run/FBSWPDB"
+
+# Path, file name, and parameters for command line Twitter client
+[ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
+
 PAGEDUMP=$(elinks --dump https://m.facebook.com/swp.de/?locale2=de_DE)
 FBURLS=$(echo -e "$(echo "$PAGEDUMP" | grep lm.facebook.com | grep utm | sed -e 's/^.*u=//g' -e 's/%3Futm_medium.*$//' -e 's/%/\\x/g')" | uniq)
 
