@@ -9,6 +9,12 @@
 # Path, file name, and parameters for command line Twitter client
 [ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
 
+if [ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] ; then
+	ALTERNATETWITTERCREDENTIALSFILE=""
+else
+	[ -n "$ALTERNATETWITTERCOMMAND=" ] && ALTERNATETWITTERCOMMAND="$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE "
+fi
+
 PAGEDUMP=$(elinks --dump https://m.facebook.com/swp.de/?locale2=de_DE)
 FBURLS=$(echo -e "$(echo "$PAGEDUMP" | grep lm.facebook.com | grep utm | sed -e 's/^.*u=//g' -e 's/%3Futm_medium.*$//' -e 's/%/\\x/g')" | uniq)
 
