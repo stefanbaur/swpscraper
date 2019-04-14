@@ -14,6 +14,9 @@ if [ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] ; then
 else
 	[ -n "$ALTERNATETWITTERCOMMAND=" ] && ALTERNATETWITTERCOMMAND="$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE "
 fi
+# some vars that need to be initialized here - don't touch
+#USERAGENT # elinks does not support overriding the user agent string via command line
+BACKOFF=0
 
 PAGEDUMP=$(elinks --dump https://m.facebook.com/swp.de/?locale2=de_DE)
 FBURLS=$(echo -e "$(echo "$PAGEDUMP" | grep lm.facebook.com | grep utm | sed -e 's/^.*u=//g' -e 's/%3Futm_medium.*$//' -e 's/%/\\x/g')" | uniq)
