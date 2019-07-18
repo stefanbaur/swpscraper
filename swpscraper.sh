@@ -503,6 +503,11 @@ function tweet_and_update() {
 			PREFACE+="#SWPPlus "
 		fi
 
+		# Add SWPAnzeige Hashtag when required
+		if echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' ; then
+			PREFACE+="#SWPAnzeige "
+		fi
+
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
