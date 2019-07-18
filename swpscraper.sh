@@ -262,10 +262,30 @@ function heartbeat() {
 				# chatter
 				local TODAYEPOCH=$(date -d "$(date +%F)" +%s)
 				local THREEHOURSAGOEPOCH=$(date -d '-3 hours' +%s)
-				local LASTTODAYFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-				local LASTFIVEDAYSFORECASTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-				local LASTSUNRISESUNSETEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-				local LASTEVENTSEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasteventstweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
+				local LASTTODAYFORECASTEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTTODAYFORECASTEPOCHDB" ] ; then
+					local LASTTODAYFORECASTEPOCH=$(date -d "$LASTTODAYFORECASTEPOCHDB" +%s)
+				else
+					local LASTTODAYFORECASTEPOCH=""
+				fi
+				local LASTFIVEDAYSFORECASTEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTFIVEDAYSFORECASTEPOCHDB" ] ; then
+					local LASTFIVEDAYSFORECASTEPOCH=$(date -d "$LASTFIVEDAYSFORECASTEPOCHDB" +%s)
+				else
+					local LASTFIVEDAYSFORECASTEPOCH=""
+				fi
+				local LASTSUNRISESUNSETEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTSUNRISESUNSETEPOCHDB" ] ; then
+					local LASTSUNRISESUNSETEPOCH=$(date -d "$LASTSUNRISESUNSETEPOCHDB" +%s)
+				else
+					local LASTSUNRISESUNSETEPOCH=""
+				fi
+				local LASTEVENTSEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasteventstweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTEVENTSEPOCHDB" ] ; then
+					local LASTEVENTSEPOCH=$(date -d "$LASTEVENTSEPOCHDB" +%s)
+				else
+					local LASTEVENTSEPOCH=""
+				fi
 
 				local DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
 				local LIFESIGNCOUNTER=0
