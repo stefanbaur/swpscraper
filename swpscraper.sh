@@ -487,6 +487,7 @@ function tweet_and_update() {
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' && \
+		     ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="inline-element-image-gallerie' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q '<figcaption' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","tickeronly")'
