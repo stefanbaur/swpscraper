@@ -300,7 +300,7 @@ function heartbeat() {
 							fi
 							;;
 						1)	# let's try a five-day weather forecast
-							if [ $(date +%H) -gt 7 ] && ( [ -z "$LASTFIVEDAYSFORECASTEPOCH" ] || [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ); then
+							if [ $(date +%H)) -gt 7 ] && ( [ -z "$LASTFIVEDAYSFORECASTEPOCH" ] || [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ); then
 									LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
 									LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
@@ -308,6 +308,8 @@ function heartbeat() {
 								echo 'Unable to use five-day weather forecast.'
 								echo "Current hour: '$(date +%H)'"
 								if [ $(date +%H) -gt 7 ] ; then
+									echo "Current hour was greater than 7"
+								else
 									echo "Current hour was less than 7"
 								fi
 								echo "LASTFIVEDAYSFORECASTEPOCH: '$LASTFIVEDAYSFORECASTEPOCH'"
