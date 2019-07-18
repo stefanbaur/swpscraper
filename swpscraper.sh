@@ -497,7 +497,9 @@ function tweet_and_update() {
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","oldnews")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
+	fi
 
+	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# Add SWPPlus Hashtag when required
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' ; then
 			PREFACE+="#SWPPlus "
