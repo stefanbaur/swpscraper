@@ -181,7 +181,7 @@ function already_tweeted() {
 	local TITLE=$2
 	local SINGLEURL=$3
 	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE | sed -e 's/#[^]//' )") ; then
+	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE | sed -e 's/#[^]//g' )") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
@@ -503,12 +503,12 @@ function tweet_and_update() {
 	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# Add SWPPlus Hashtag when required
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' ; then
-			PREFACE+="#SWPPlus "
-		fi
-
+			ADORPLUS="#SWPPlus "
 		# Add SWPAnzeige Hashtag when required
-		if echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' ; then
-			PREFACE+="#SWPAnzeige "
+		elif echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' ; then
+			ADORPLUS="#SWPAnzeige "
+		else
+			ADORPLUS=""
 		fi
 
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
@@ -526,7 +526,7 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 
-			TITLE="${PREFACE}${TITLE}"
+			TITLE="${ADORPLUS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
 			MAXTITLELENGTH=$((280-23-1))
