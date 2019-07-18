@@ -500,7 +500,7 @@ function tweet_and_update() {
 
 		# Add SWPPlus Hashtag when required
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' ; then
-			$PREFACE+="#SWPPlus "
+			PREFACE+="#SWPPlus "
 		fi
 
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
