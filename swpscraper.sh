@@ -6,6 +6,9 @@
 # Path and file name for sqlite database
 [ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
 
+# TempDir
+[ -z "$TEMPDIR" ] && TEMPDIR="/tmp/"
+
 # Path, file name, and parameters for command line Twitter client
 [ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
 
@@ -573,7 +576,10 @@ function tweet_and_update() {
 					fi
 				fi
 				if ! [ $TWEETEDLINK -eq 1 ] ; then
-
+					# debug: Sometimes we see tweets containing raw html code, merely stripped off <> characters.  Trying to find out why ...
+					if echo -e "$MESSAGE" | grep -q 'doctype' ; then
+						echo -e "$SCRAPEDPAGE" >$TEMPDIR/scrapedpage.doctype.error
+					fi
 					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
 					# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
