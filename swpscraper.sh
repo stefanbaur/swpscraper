@@ -543,7 +543,7 @@ function tweet_and_update() {
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
 		# a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
-		TITLE=$(echo "$SCRAPEDPAGE" | grep -A10 -B10 title | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's#[^a-zäöüA-ZÄÖÜ0-9ß%€„“ _/.,!?&():=-]# #g' -e 's/\(\S\S\)\.\(\S\S\)/\1. \2/g')
+		TITLE=$(echo "$SCRAPEDPAGE" | grep -A10 title | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's#[^a-zäöüA-ZÄÖÜ0-9ß%€„“ _/.,!?&():=-]# #g' -e 's/\(\S\S\)\.\(\S\S\)/\1. \2/g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
