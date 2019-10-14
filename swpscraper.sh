@@ -164,11 +164,17 @@ function get_external_news_infos() {
 function determine_last_tweet() {
 	local USERAGENT=$1
 	local LONGCHECK=$2
-	local TWEETTIME
-	local SCRAPEDPAGE
+	local TWEETTIME=''
+	local SCRAPEDPAGE=''
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
-	TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+	# make sure we have a valid value in $TWEETTIME
+	while [ -z $TWEETTIME ] ; do
+		SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
+		# only set $TWEETTIME if page was scraped completely
+		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
+			TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+		fi
+	done
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
 		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize")
