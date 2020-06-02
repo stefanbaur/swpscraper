@@ -192,10 +192,10 @@ function determine_last_tweet() {
 	done
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize")
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text')
 	else
 		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text' | head -n 3)
 	fi
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
