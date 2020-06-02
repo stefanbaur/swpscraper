@@ -743,6 +743,7 @@ for SINGLEBASEURL in $BASEURL; do
 	# TODO replace lynx -dump with a tool that allows setting a referer, for faking a human surf experience
 	if [ "$LINKTYPE" = "noticker" ] ; then
 		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
+		# NOTE: This is now broken and will also ignore some of the links on the main page.  Recommendation is to use fullpage and white-/blacklists instead.
 		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
 	elif [ "$LINKTYPE" = "tickeronly" ]; then
 		# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
