@@ -135,12 +135,13 @@ function get_external_event_suggestion() {
 	done
 }
 
+# TODO this might still be broken regarding scrape_swp_page vs. scrape_twitter_page, needs check
 function get_external_news_infos() {
 	# TMC = Traffic Message Channel (https://en.wikipedia.org/wiki/Traffic_message_channel)
 	local USERAGENT=$1
 	local LISTNAME=$2
 	local GREPSTRING=$3
-	local TMC=$(scrape_page "$LISTNAME" "$USERAGENT" | grep -v "data-permalink-path" | grep '/status/' | sed -e 's/^.*a href="\([^"]*\)" class.*data-time="\([^"]*\)".*$/\2:\1/g')
+	local TMC=$(scrape_swp_page "$LISTNAME" "$USERAGENT" | grep -v "data-permalink-path" | grep '/status/' | sed -e 's/^.*a href="\([^"]*\)" class.*data-time="\([^"]*\)".*$/\2:\1/g')
 	local STATUS
 	for STATUS in $TMC; do
 		local STATUSTIME=${STATUS%%:*}
@@ -149,7 +150,7 @@ function get_external_news_infos() {
 		local CUTOFFTIME=$(date -d '1 hour ago' +%s)
 		if [ $STATUSTIME -gt $CUTOFFTIME ] && [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM externalurls WHERE externalurl="https://twitter.com'$STATUSPATH'" LIMIT 1')" ]; then
 			if [ -n "$GREPSTRING" ] ; then
-				PAGECONTENT=$(scrape_page "https://twitter.com${STATUSPATH}" "$USERAGENT")
+				PAGECONTENT=$(scrape_swp_page "https://twitter.com${STATUSPATH}" "$USERAGENT")
 				TITLESTRING=$(echo -e "$PAGECONTENT" | grep '<title>')
 			fi
 			if [ -z "$GREPSTRING" ] || echo -e "$TITLESTRING" | grep -q -Ew "$GREPSTRING" ; then 
@@ -169,7 +170,7 @@ function determine_last_tweet() {
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
 	# make sure we have a valid value in $TWEETTIME
 	while [ -z $TWEETTIME ] ; do
-		SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
+		SCRAPEDPAGE=$(scrape_twitter_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
 		# only set $TWEETTIME if page was scraped completely
 		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
 			TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
@@ -203,13 +204,24 @@ function already_tweeted() {
 	fi
 }
 
-function scrape_page() {
+function scrape_swp_page() {
 
 	local URL=$1
 	local USERAGENT=$2
 	local SCRAPEDPAGE=""
 
 	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" -O - "$URL")
+	echo -e "$SCRAPEDPAGE"
+
+}
+
+function scrape_twitter_page() {
+
+	local URL=$1
+	local USERAGENT=$2
+	local SCRAPEDPAGE=""
+
+	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
 	echo -e "$SCRAPEDPAGE"
 
 }
@@ -483,7 +495,7 @@ function tweet_and_update() {
 	local PRIMETABLE=$4
 	local TWEETEDLINK=0
 
-	local SCRAPEDPAGE=$(scrape_page "$SINGLEURL" "$USERAGENT")
+	local SCRAPEDPAGE=$(scrape_swp_page "$SINGLEURL" "$USERAGENT")
 
 	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
 	if [ -z "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
