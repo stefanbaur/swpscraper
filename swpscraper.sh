@@ -716,7 +716,7 @@ fi
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 # check for shadowban
-if [ $(wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/SWPde_bot/' -c) -gt 1 ] ; then
+if [ $(wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/SWPde_bot/' -c) -lt 1 ] ; then
 	echo "No search results - have we been shadowbanned?"
 fi
 
