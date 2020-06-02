@@ -173,7 +173,21 @@ function determine_last_tweet() {
 		SCRAPEDPAGE=$(scrape_twitter_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
 		# only set $TWEETTIME if page was scraped completely
 		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
-			TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+			TWEETDATELIST=$(echo -e "$SCRAPEDPAGE" | \
+					grep -A1 'class="timestamp' | \
+					grep -v 'class="timestamp' | \
+					grep -v '^--' | \
+					sed -e 's#^.*p=p">\(.*\)</a>.*$#\1#' | \
+					sed -e 's#s$# seconds ago#g' -e 's#m$# minutes ago#g' -e 's#h$# hours ago#g')
+			EPOCHTWEETDATELIST=""
+			OLDIFS=$IFS
+			IFS=$'\n'
+			for SINGLETWEETDATE in $TWEETDATELIST; do
+				SINGLETWEETDATE=$(date -d "$SINGLETWEETDATE" +%s)
+				EPOCHTWEETDATELIST+=$(echo -e "$SINGLETWEETDATE|")
+			done
+			IFS=$OLDIFS
+			TWEETTIME=$(echo -e "$EPOCHTWEETDATELIST" | tr '|' '\n' | sort -n -u | tail -n 1)
 		fi
 	done
 	if [ -n "$LONGCHECK" ]; then
