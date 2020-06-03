@@ -564,7 +564,7 @@ function tweet_and_update() {
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<svg class="icon p-1 paywall">' ; then
 			ADORPLUS="#SWPPlus_beta "
 		# Add SWPAnzeige Hashtag when required
-		elif echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' ; then
+		elif echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' || echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-primary">' | grep -q 'ANZEIGE' ; then
 			ADORPLUS="#SWPAnzeige "
 		else
 			ADORPLUS=""
