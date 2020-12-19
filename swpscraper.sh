@@ -168,35 +168,42 @@ function determine_last_tweet() {
 	local TWEETTIME=''
 	local SCRAPEDPAGE=''
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	# make sure we have a valid value in $TWEETTIME
-	while [ -z $TWEETTIME ] ; do
-		SCRAPEDPAGE=$(scrape_twitter_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
-		# only set $TWEETTIME if page was scraped completely
-		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
-			TWEETDATELIST=$(echo -e "$SCRAPEDPAGE" | \
-					grep -A1 'class="timestamp' | \
-					grep -v 'class="timestamp' | \
-					grep -v '^--' | \
-					sed -e 's#^.*p=p">\(.*\)</a>.*$#\1#' | \
-					sed -e 's#s$# seconds ago#g' -e 's#m$# minutes ago#g' -e 's#h$# hours ago#g')
-			EPOCHTWEETDATELIST=""
-			OLDIFS=$IFS
-			IFS=$'\n'
-			for SINGLETWEETDATE in $TWEETDATELIST; do
-				SINGLETWEETDATE=$(date -d "$SINGLETWEETDATE" +%s)
-				EPOCHTWEETDATELIST+=$(echo -e "$SINGLETWEETDATE|")
-			done
-			IFS=$OLDIFS
-			TWEETTIME=$(echo -e "$EPOCHTWEETDATELIST" | tr '|' '\n' | sort -n -u | tail -n 1)
-		fi
-	done
+TWEETTIME=""
+#	# make sure we have a valid value in $TWEETTIME
+#	while [ -z $TWEETTIME ] ; do
+#		SCRAPEDPAGE=$(scrape_twitter_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
+		SCRAPEDPAGE=$(echo '/search from:@SWPde_bot' | eval "$TWITTER")
+
+#		# only set $TWEETTIME if page was scraped completely
+#		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
+#		if echo -e "$SCRAPEDPAGE" | grep -q -i '<${BOTNAME/@}>'; then
+#			TWEETDATELIST=$(echo -e "$SCRAPEDPAGE" | \
+#					grep -A1 'class="timestamp' | \
+#					grep -v 'class="timestamp' | \
+#					grep -v '^--' | \
+#					sed -e 's#^.*p=p">\(.*\)</a>.*$#\1#' | \
+#					sed -e 's#s$# seconds ago#g' -e 's#m$# minutes ago#g' -e 's#h$# hours ago#g')
+#			EPOCHTWEETDATELIST=""
+#			OLDIFS=$IFS
+#			IFS=$'\n'
+#			for SINGLETWEETDATE in $TWEETDATELIST; do
+#				SINGLETWEETDATE=$(date -d "$SINGLETWEETDATE" +%s)
+#				EPOCHTWEETDATELIST+=$(echo -e "$SINGLETWEETDATE|")
+#			done
+#			IFS=$OLDIFS
+#			TWEETTIME=$(echo -e "$EPOCHTWEETDATELIST" | tr '|' '\n' | sort -n -u | tail -n 1)
+#		fi
+#	done
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text')
+#		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text')
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | sed -e "s#<${BOTNAME/@}> ##")
 	else
 		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text' | head -n 3)
+#		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text' | head -n 3)
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | sed -e "s#<${BOTNAME/@}> ##" | tail -n 3)
 	fi
+#	echo "${TWEETTIME}|${TWEETTITLES}"
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
 
@@ -793,7 +800,7 @@ if [ $BACKOFF -eq 1 ]; then
 	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$ALTERNATETWITTERCOMMAND -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
 	exit 1
 else
-	heartbeat "$USERAGENT" "$PRIMETABLE"
+#	heartbeat "$USERAGENT" "$PRIMETABLE"
 	echo "Done."
 	exit 0
 fi
