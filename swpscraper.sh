@@ -231,7 +231,7 @@ function scrape_swp_page() {
 	local USERAGENT=$2
 	local SCRAPEDPAGE=""
 
-	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" -O - "$URL")
+	SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" -O - "$URL")
 	echo -e "$SCRAPEDPAGE"
 
 }
@@ -242,7 +242,7 @@ function scrape_twitter_page() {
 	local USERAGENT=$2
 	local SCRAPEDPAGE=""
 
-	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
+	SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
 	echo -e "$SCRAPEDPAGE"
 
 }
@@ -333,7 +333,7 @@ function heartbeat() {
 				local LIFESIGNCOUNTER=0
 				while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
 					local CHATTER=$((RANDOM%7))
-					# local CHATTER=$(wget -q -O - 'http://www.miraclesalad.com/webtools/random.php?i=1&u=1&low=1&high=6&groups=1&Submit=Go' | grep '<p class="output">' | awk -F'>|<' '{ print $3}' | tr -d -c '[:digit:]')
+					# local CHATTER=$(timeout 60 wget -q -O - 'http://www.miraclesalad.com/webtools/random.php?i=1&u=1&low=1&high=6&groups=1&Submit=Go' | grep '<p class="output">' | awk -F'>|<' '{ print $3}' | tr -d -c '[:digit:]')
 					echo "CHATTER: '$CHATTER'"
 					case $CHATTER in
 						0)	# let's try today's weather forecast
@@ -726,7 +726,7 @@ fi
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 # check for shadowban
-if [ $(wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
+if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
 	echo "No search results - have we been shadowbanned?"
 fi
 
@@ -754,14 +754,14 @@ for SINGLEBASEURL in $BASEURL; do
 	if [ "$LINKTYPE" = "noticker" ] ; then
 		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
 		# NOTE: This is now broken and will also ignore some of the links on the main page.  Recommendation is to use fullpage and white-/blacklists instead.
-		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
+		URLLIST+="$(LANG=C timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
 	elif [ "$LINKTYPE" = "tickeronly" ]; then
 		# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
 		# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
+		URLLIST+="$(timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	else
 		# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
+		URLLIST+="$(timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	fi
 	#  [ -z "$FAKEREFERER" ] && FAKEREFERER=$SINGLEBASEURL # for future use - pretend user was following links from first page in list
 	INITIALRANDSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s" # subsequent runs don't need such a long interval
