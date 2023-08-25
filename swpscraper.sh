@@ -135,16 +135,25 @@ function determine_last_tweet() {
 	local USERAGENT=$1
 	local LONGCHECK=$2
 	local TWEETTIME
+	local TWEETTIMESTAMP
+	local TWEETTIMESTAMPS=""
 	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
-	TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+	SCRAPEDPAGE=$(scrape_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
+	TWEETTIMES="$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-date' | sed -e 's/^.*title="\([^"]*\)".*$/\1|/' -e 's/ · / /')"
+	
+	OLDIFS=$IFS; IFS="|"
+	for TWEETTIMESTAMP in $TWEETTIMES; do 
+		TWEETTIMESTAMPS=$(echo -e "$TWEETTIMESTAMPS\n$(date -d "$TWEETTIMESTAMP" +%s)\n")
+	done
+	IFS=$OLDIFS 
+	TWEETTIME=$(echo -e "TWEETTIMESTAMPS" | sort -n | tail -n 1)
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize")
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body")
 	else
 		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body" | head -n 3)
 	fi
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
@@ -153,8 +162,9 @@ function already_tweeted() {
 	local LASTTWEET=$1
 	local TITLE=$2
 	local SINGLEURL=$3
-	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+	## I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
+	#if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+	if (echo "$LASTTWEET" | grep -q "$SINGLEURL") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
