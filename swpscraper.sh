@@ -170,7 +170,7 @@ function determine_last_tweet() {
 	local TWEETTIMESTAMPS=""
 	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	SCRAPEDPAGE=$(scrape_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
+	SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
 	TWEETTIMES="$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-date' | sed -e 's/^.*title="\([^"]*\)".*$/\1|/' -e 's/ · / /')"
 	
 	OLDIFS=$IFS; IFS="|"
