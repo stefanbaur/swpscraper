@@ -165,45 +165,27 @@ function get_external_news_infos() {
 function determine_last_tweet() {
 	local USERAGENT=$1
 	local LONGCHECK=$2
-	local TWEETTIME=''
-	local SCRAPEDPAGE=''
+	local TWEETTIME
+	local TWEETTIMESTAMP
+	local TWEETTIMESTAMPS=""
+	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-TWEETTIME=""
-#	# make sure we have a valid value in $TWEETTIME
-#	while [ -z $TWEETTIME ] ; do
-#		SCRAPEDPAGE=$(scrape_twitter_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
-		SCRAPEDPAGE=$(echo '/search from:@SWPde_bot' | eval "$TWITTER")
-
-#		# only set $TWEETTIME if page was scraped completely
-#		if echo -e "$SCRAPEDPAGE" | grep -q -i '</html>'; then
-#		if echo -e "$SCRAPEDPAGE" | grep -q -i '<${BOTNAME/@}>'; then
-#			TWEETDATELIST=$(echo -e "$SCRAPEDPAGE" | \
-#					grep -A1 'class="timestamp' | \
-#					grep -v 'class="timestamp' | \
-#					grep -v '^--' | \
-#					sed -e 's#^.*p=p">\(.*\)</a>.*$#\1#' | \
-#					sed -e 's#s$# seconds ago#g' -e 's#m$# minutes ago#g' -e 's#h$# hours ago#g')
-#			EPOCHTWEETDATELIST=""
-#			OLDIFS=$IFS
-#			IFS=$'\n'
-#			for SINGLETWEETDATE in $TWEETDATELIST; do
-#				SINGLETWEETDATE=$(date -d "$SINGLETWEETDATE" +%s)
-#				EPOCHTWEETDATELIST+=$(echo -e "$SINGLETWEETDATE|")
-#			done
-#			IFS=$OLDIFS
-#			TWEETTIME=$(echo -e "$EPOCHTWEETDATELIST" | tr '|' '\n' | sort -n -u | tail -n 1)
-#		fi
-#	done
+	SCRAPEDPAGE=$(scrape_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
+	TWEETTIMES="$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-date' | sed -e 's/^.*title="\([^"]*\)".*$/\1|/' -e 's/ · / /')"
+	
+	OLDIFS=$IFS; IFS="|"
+	for TWEETTIMESTAMP in $TWEETTIMES; do 
+		TWEETTIMESTAMPS=$(echo -e "$TWEETTIMESTAMPS\n$(date -d "$TWEETTIMESTAMP" +%s)\n")
+	done
+	IFS=$OLDIFS 
+	TWEETTIME=$(echo -e "TWEETTIMESTAMPS" | sort -n | tail -n 1)
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
-#		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text')
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | sed -e "s#<${BOTNAME/@}> ##")
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body")
 	else
 		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-#		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep -A1 'tweet-text' | grep -v '^--' | grep -v 'tweet-text' | head -n 3)
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | sed -e "s#<${BOTNAME/@}> ##" | tail -n 3)
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body" | head -n 3)
 	fi
-#	echo "${TWEETTIME}|${TWEETTITLES}"
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
 
@@ -211,8 +193,9 @@ function already_tweeted() {
 	local LASTTWEET=$1
 	local TITLE=$2
 	local SINGLEURL=$3
-	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE | sed -e 's/#[^ ]* //g' )") ; then
+	## I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
+	#if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+	if (echo "$LASTTWEET" | grep -q "$SINGLEURL") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
@@ -242,7 +225,8 @@ function scrape_twitter_page() {
 	local USERAGENT=$2
 	local SCRAPEDPAGE=""
 
-	SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
+	#SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
+	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" -O - "$URL")
 	echo -e "$SCRAPEDPAGE"
 
 }
