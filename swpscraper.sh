@@ -609,7 +609,7 @@ function tweet_and_update() {
 					if echo -e "$MESSAGE" | grep -q 'doctype' ; then
 						echo -e "$SCRAPEDPAGE" >$TEMPDIR/scrapedpage.doctype.error
 					fi
-					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
+					echo " - About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
 					# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
 					# that's why we need to perform a webscrape to check if our tweet went out
