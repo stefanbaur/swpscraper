@@ -606,23 +606,39 @@ function tweet_and_update() {
 					fi
 					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
-					# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
-					# that's why we need to perform a webscrape to check if our tweet went out
-					echo "$MESSAGE" | eval "$TWITTER"
-					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
-					sleep $RANDCHECKDELAY
-					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
-						echo -e " - Tweeted."
-						TWEETEDLINK=1
+					TWEETID=""
+					TWEETID=$(echo "$MESSAGE" | eval "$TWITTER")
+					if [ -z "$TWEETID" ]; then
+						# if we didn't receive a tweet ID as a reply, we need to perform a webscrape to check if our tweet went out
+						RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+						echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
+						sleep $RANDCHECKDELAY
+						LASTTWEET=$(determine_last_tweet "$USERAGENT")
+						if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
+							echo -e " - Tweeted."
+							TWEETEDLINK=1
+						else
+							# unable to spot my own tweet!
+							echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+							echo -e "--------------" >> swpscraper.error
+							echo -e "$TITLE" >>swpscraper.error
+							echo -e "--------------" >> swpscraper.error
+							BACKOFF=1
+						fi
 					else
-						# unable to spot my own tweet!
-						echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
-						echo -e "--------------" >> swpscraper.error
-						echo -e "$TITLE" >>swpscraper.error
-						echo -e "--------------" >> swpscraper.error
-						BACKOFF=1
+						# with a tweet ID, we skip the random wait and just go straight for a quick check
+						SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}/status/${TWEETID}" "$USERAGENT")
+						if echo -e "$SCRAPEDPAGE" | grep -q ">Tweet not found<"; then
+							# unable to spot my own tweet!
+							echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+							echo -e "--------------" >> swpscraper.error
+							echo -e "$TITLE" >>swpscraper.error
+							echo -e "--------------" >> swpscraper.error
+							BACKOFF=1
+						else
+							echo -e " - Tweeted."
+							TWEETEDLINK=1
+						fi
 					fi
 				fi
 			else
