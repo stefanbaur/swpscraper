@@ -607,12 +607,21 @@ function tweet_and_update() {
 					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
 					TWEETID=""
-					TWEETID=$(echo "$MESSAGE" | eval "$TWITTER")
+					TRYAGAIN=0
+					# try tweeting twice - if the first attempt returns no tweet ID, but also doesn't complain about tweeting too fast
+					while [ -z "$TWEETID" ] && [ $TRYAGAIN -lt 2 ]; do
+						TWEETID=$(echo "$MESSAGE" | eval "$TWITTER")
+						if [ "$TWEETID" = "ETOOFAST" ]; then
+							RANDRETRYDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+							sleep $RANDRETRYDELAY
+						fi
+						TRYAGAIN=$((TRYAGAIN+1))
+					done
+					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
+					sleep $RANDCHECKDELAY
 					if [ -z "$TWEETID" ]; then
 						# if we didn't receive a tweet ID as a reply, we need to perform a webscrape to check if our tweet went out
-						RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-						echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
-						sleep $RANDCHECKDELAY
 						LASTTWEET=$(determine_last_tweet "$USERAGENT")
 						if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
 							echo -e " - Tweeted."
@@ -626,7 +635,7 @@ function tweet_and_update() {
 							BACKOFF=1
 						fi
 					else
-						# with a tweet ID, we skip the random wait and just go straight for a quick check
+						# with a tweet ID, we go straight for a quick check
 						SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}/status/${TWEETID}" "$USERAGENT")
 						if echo -e "$SCRAPEDPAGE" | grep -q ">Tweet not found<"; then
 							# unable to spot my own tweet!
