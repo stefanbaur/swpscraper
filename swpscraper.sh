@@ -10,7 +10,7 @@
 [ -z "$TEMPDIR" ] && TEMPDIR="/tmp/"
 
 # Path, file name, and parameters for command line Twitter client
-[ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
+[ -z "$TWITTER" ] && TWITTER="../tweepy/tweet-via-tweepy.py"
 
 # Page to be scraped:
 [ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
@@ -64,11 +64,6 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 [ -z "$NATIONALNEWSURLMSG" ] && NATIONALNEWSURLMSG="Überregionale Erwähnung unserer Stadt"
 [ -z "$CITYGREP" ] && CITYGREP="Ulm\W|#Ulm"
 [ -z "$EVENTSUGGESTIONMSG" ] && EVENTSUGGESTIONMSG="Wie wäre es mit ein paar Veranstaltungstipps"
-if [ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] ; then
-	ALTERNATETWITTERCREDENTIALSFILE=""
-else
-	[ -n "$ALTERNATETWITTERCOMMAND=" ] && ALTERNATETWITTERCOMMAND="$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE "
-fi
 
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
@@ -710,9 +705,12 @@ fi
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 # check for shadowban
-if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
-	echo "No search results - have we been shadowbanned?"
-fi
+# nitter.net doesn't work here ... yet? (it always shows search results)
+# if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://nitter.net/'"${BOTNAME/@}"'/search?f=tweets&q='"${BOTNAME/@}"'&since=&until=&near=&src=typd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
+# this doesn't work any more as twitter is blocking anonymous (non-logged-in) searches and also requires javascript, even on mobile
+# if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
+# 	echo "No search results - have we been shadowbanned?"
+# fi
 
 
 URLLIST=""
@@ -781,7 +779,7 @@ done
 
 if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
-	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$ALTERNATETWITTERCOMMAND -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
+	# $(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')
 	exit 1
 else
 #	heartbeat "$USERAGENT" "$PRIMETABLE"
