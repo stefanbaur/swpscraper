@@ -620,7 +620,15 @@ function tweet_and_update() {
 					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
-					if [ -z "$TWEETID" ]; then
+
+					if [ "$TWEETID" = "ETOOFAST" ]; then
+						# TWEETING TOO FAST!
+						echo -e "\nError tweeting '$MESSAGE'. Tweeting too fast! Storing in table and marking as not yet tweeted."
+						echo -e "--------------" >> swpscraper.error
+						echo -e "$TITLE" >>swpscraper.error
+						echo -e "--------------" >> swpscraper.error
+						BACKOFF=1
+					elif [ -z "$TWEETID" ]; then
 						# if we didn't receive a tweet ID as a reply, we need to perform a webscrape to check if our tweet went out
 						LASTTWEET=$(determine_last_tweet "$USERAGENT")
 						if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
@@ -645,6 +653,8 @@ function tweet_and_update() {
 							echo -e "--------------" >> swpscraper.error
 							BACKOFF=1
 						else
+							# This is cheating, as already_tweeted checks if the content of the third parameter is contained in the first
+							already_tweeted "$SINGLEURL" "$TITLE" "$SINGLEURL"
 							echo -e " - Tweeted."
 							TWEETEDLINK=1
 						fi
