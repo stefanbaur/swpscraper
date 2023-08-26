@@ -6,8 +6,11 @@
 # Path and file name for sqlite database
 [ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
 
+# TempDir
+[ -z "$TEMPDIR" ] && TEMPDIR="/tmp/"
+
 # Path, file name, and parameters for command line Twitter client
-[ -z "$TWITTER" ] && TWITTER="../oysttyer/oysttyer.pl -script"
+[ -z "$TWITTER" ] && TWITTER="../tweepy/tweet-via-tweepy.py"
 
 # Page to be scraped:
 [ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
@@ -61,11 +64,6 @@ USERAGENTARRAY=('Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:65.0) Gecko/20100101
 [ -z "$NATIONALNEWSURLMSG" ] && NATIONALNEWSURLMSG="Überregionale Erwähnung unserer Stadt"
 [ -z "$CITYGREP" ] && CITYGREP="Ulm\W|#Ulm"
 [ -z "$EVENTSUGGESTIONMSG" ] && EVENTSUGGESTIONMSG="Wie wäre es mit ein paar Veranstaltungstipps"
-if [ -z "$ALTERNATETWITTERCREDENTIALSFILE" ] ; then
-	ALTERNATETWITTERCREDENTIALSFILE=""
-else
-	[ -n "$ALTERNATETWITTERCOMMAND=" ] && ALTERNATETWITTERCOMMAND="$TWITTER -keyf=$ALTERNATETWITTERCREDENTIALSFILE "
-fi
 
 # some vars that need to be initialized here - don't touch
 USERAGENT=${USERAGENTARRAY[$(($RANDOM%${#USERAGENTARRAY[*]}))]}
@@ -75,27 +73,54 @@ function get_external_event_suggestion() {
 	local STATUS
 	local TIMESTAMP=$(date -d "$(date -d 'today' +%F)" +%s)
 	local HUMANDATE=$(date +%x)
+	local ISODATE=$(date +%F)
 	local EVENTURLSARRAY=(
 		'https://events.swp.de/ulm/veranstaltungen/veranstaltungen/?event[suche][pager]=&event[suche][kalender-tag]='"$TIMESTAMP"'&event[suche][mstmp]='"$TIMESTAMP"'&event[suche][stmpflag]=tag&event[suche][start]=0&event[suche][vwnum]=&event[suche][suchen]=0&event[suche][veranstalter]=&event[suche][land]=DE&event[suche][uhrzeit]=&event[suche][group]=&event[suche][ed_textsearch]=&event[suche][ressort]=0&event[suche][plz]=89073&event[suche][umkreis]=10&event[suche][zeitraum]=TAG&frmDatum='"$HUMANDATE"'&sf[seldat]='"$TIMESTAMP"
 		'https://veranstaltungen.ulm.de/leoonline/portals/ulm/veranstaltungen/suche/neu/?search_from='"$HUMANDATE"
 		'https://stadthaus.ulm.de/kalender'
 		'http://www.ulmer-kalender.de/events/day/date/'"${HUMANDATE//-/.}"
+		'https://www.regioactive.de/events/25209/ulm/veranstaltungen-party-konzerte/'"$ISODATE"
+		'https://veranstaltungen.meinestadt.de/ulm'
+		'https://www.donau3fm.de/events'
+		'https://www.theater-ulm.de/spielplan'
+		'http://theater-neu-ulm.de/cmsroot/spielplan/'
+		'http://www.frizz-ulm.de/events/'
+		'https://www.uni-ulm.de/home/sitemap/kalender/'
+		'http://ulm.partyphase.net/veranstaltungskalender-ulm/'
+
 			     )
 	local EVENTSOURCEARRAY=(
 			'aus dem Veranstaltungskalender der Südwest Presse (@SWPde)'
 			'aus dem Veranstaltungskalender der Stadt Ulm (@ulm_donau)'
 			'vom Stadthaus Ulm (@stadthaus_ulm)'
 			'aus dem Veranstaltungskalender von Ulm-News (@ulmnews)'
+			'aus dem Veranstaltungskalender von regioactive (@regioactive)'
+			'aus dem Veranstaltungskalender von meinestadt․de (@meinestadt_de)'
+			'aus dem Veranstaltungskalender von Donau 3 FM (@donau3fm)'
+			'aus dem Spielplan des Theaters Ulm (@TheaterUlm)'
+			'aus dem Spielplan des Theaters Neu-Ulm (AuGuSTheater)'
+			'aus dem Veranstaltungskalender von Frizz Ulm'
+			'aus dem Veranstaltungskalender der Universität Ulm (@uni_ulm)'
+                        'aus dem Veranstaltungskalender von Partyphase (@partyphase)'
 			       )
 	local EVENTTAGSARRAY=(
 			'#SüdwestPresse #SWP #Veranstaltungskalender'
 			'#StadtUlm #Stadt #Ulm #Veranstaltungskalender'
 			'#StadthausUlm #Stadthaus #Ulm #Veranstaltungen'
 			'#UlmNews #Ulm #Veranstaltungskalender'
+			'#regioactive #Ulm #Veranstaltungskalender'
+			'#meinestadt_de #meinestadtde #meinestadt #Ulm #Veranstaltungskalender'
+			'#donau3fm #donau3 #Ulm #Veranstaltungskalender'
+			'#TheaterUlm #Theater #Ulm #Spielplan'
+			'#TheaterNeuUlm #Theater #NeuUlm #AuGuSTheater #Spielplan'
+			'#FrizzUlm #Frizz #Ulm #Veranstaltungskalender'
+			'#UniversitaetUlm #UniUlm #Ulm #Veranstaltungskalender'
+			'#PartyphaseUlm #Partyphase #Ulm #Veranstaltungskalender'
 			       )
 	for EVENTURL in ${EVENTURLSARRAY[*]}; do
 		# if not yet stored or entry older than today
 		if [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM externalurls WHERE externalurl="'$EVENTURL'" LIMIT 1')" ] || \
+# TODO add a randomizer and 12h block here
 			[ $(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM externalurls WHERE externalurl = "'$EVENTURL'" ORDER BY timestamp DESC LIMIT 1')" +%s) -lt $(date -d "$(date +%F)" +%s) ] ; then
 			echo "$EVENTSUGGESTIONMSG ${EVENTSOURCEARRAY[$SOURCECOUNTER]}? ${EVENTTAGSARRAY[$SOURCECOUNTER]} $EVENTURL"
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO externalurls ('externalurl') VALUES ("'$EVENTURL'")'
@@ -105,12 +130,13 @@ function get_external_event_suggestion() {
 	done
 }
 
+# TODO this might still be broken regarding scrape_swp_page vs. scrape_twitter_page, needs check
 function get_external_news_infos() {
 	# TMC = Traffic Message Channel (https://en.wikipedia.org/wiki/Traffic_message_channel)
 	local USERAGENT=$1
 	local LISTNAME=$2
 	local GREPSTRING=$3
-	local TMC=$(scrape_page "$LISTNAME" "$USERAGENT" | grep -v "data-permalink-path" | grep '/status/' | sed -e 's/^.*a href="\([^"]*\)" class.*data-time="\([^"]*\)".*$/\2:\1/g')
+	local TMC=$(scrape_swp_page "$LISTNAME" "$USERAGENT" | grep -v "data-permalink-path" | grep '/status/' | sed -e 's/^.*a href="\([^"]*\)" class.*data-time="\([^"]*\)".*$/\2:\1/g')
 	local STATUS
 	for STATUS in $TMC; do
 		local STATUSTIME=${STATUS%%:*}
@@ -119,7 +145,7 @@ function get_external_news_infos() {
 		local CUTOFFTIME=$(date -d '1 hour ago' +%s)
 		if [ $STATUSTIME -gt $CUTOFFTIME ] && [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM externalurls WHERE externalurl="https://twitter.com'$STATUSPATH'" LIMIT 1')" ]; then
 			if [ -n "$GREPSTRING" ] ; then
-				PAGECONTENT=$(scrape_page "https://twitter.com${STATUSPATH}" "$USERAGENT")
+				PAGECONTENT=$(scrape_swp_page "https://twitter.com${STATUSPATH}" "$USERAGENT")
 				TITLESTRING=$(echo -e "$PAGECONTENT" | grep '<title>')
 			fi
 			if [ -z "$GREPSTRING" ] || echo -e "$TITLESTRING" | grep -q -Ew "$GREPSTRING" ; then 
@@ -135,16 +161,25 @@ function determine_last_tweet() {
 	local USERAGENT=$1
 	local LONGCHECK=$2
 	local TWEETTIME
+	local TWEETTIMESTAMP
+	local TWEETTIMESTAMPS=""
 	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	SCRAPEDPAGE=$(scrape_page "https://twitter.com/${BOTNAME/@}" "$USERAGENT")
-	TWEETTIME=$(date -d "@$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-timestamp' | sed -e 's/^.*data-time="\([^"]*\)".*$/\1/' | head -n 2 | sort -n | tail -n 1)" +%s)
+	SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
+	TWEETTIMES="$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-date' | sed -e 's/^.*title="\([^"]*\)".*$/\1|/' -e 's/ · / /')"
+	
+	OLDIFS=$IFS; IFS="|"
+	for TWEETTIMESTAMP in $TWEETTIMES; do 
+		TWEETTIMESTAMPS=$(echo -e "$TWEETTIMESTAMPS\n$(date -d "$TWEETTIMESTAMP" +%s)\n")
+	done
+	IFS=$OLDIFS 
+	TWEETTIME=$(echo -e "TWEETTIMESTAMPS" | sort -n | tail -n 1)
 	if [ -n "$LONGCHECK" ]; then
 		# Let's dump all we have
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize")
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body")
 	else
 		# we want to make sure a pinned tweet and a manually-sent tweet don't trigger a false positive, so head -n 3
-		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "TweetTextSize" | head -n 3)
+		TWEETTITLES=$(echo -e "$SCRAPEDPAGE" | grep "tweet-content media-body" | head -n 3)
 	fi
 	echo "${TWEETTIME}|${TWEETTITLES}"
 }
@@ -153,8 +188,9 @@ function already_tweeted() {
 	local LASTTWEET=$1
 	local TITLE=$2
 	local SINGLEURL=$3
-	# I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
-	if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+	## I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
+	#if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+	if (echo "$LASTTWEET" | grep -q "$SINGLEURL") ; then
 		# Mark as tweeted
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
@@ -167,15 +203,288 @@ function already_tweeted() {
 	fi
 }
 
-function scrape_page() {
+function scrape_swp_page() {
 
 	local URL=$1
 	local USERAGENT=$2
 	local SCRAPEDPAGE=""
 
+	SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" -O - "$URL")
+	echo -e "$SCRAPEDPAGE"
+
+}
+
+function scrape_twitter_page() {
+
+	local URL=$1
+	local USERAGENT=$2
+	local SCRAPEDPAGE=""
+
+	#SCRAPEDPAGE=$(timeout 60 wget -q -U "$USERAGENT" --post-data="" -O - --referer "$URL" "https://mobile.twitter.com/i/nojs_router?path=%2F${URL##*/}")
 	SCRAPEDPAGE=$(wget -q -U "$USERAGENT" -O - "$URL")
 	echo -e "$SCRAPEDPAGE"
 
+}
+
+function heartbeat() {
+	# TWEETEDLINK aus DB auslesen/setzen
+	local TWEETEDLINK
+	local USERAGENT=$1
+	local PRIMETABLE=$2
+	local LASTTWEETDB
+	local LASTTWEET
+	local LTT
+	local NOW
+	local ONEHAGO
+		if [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status="lastlifesigncheck" ORDER BY timestamp DESC')" ] ; then
+		# set flag that we've been here during this run
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
+		# Determine last tweet time
+		if !  [ "$PRIMETABLE" = "yes" ] ; then
+			# Note that the blank *after* the " is important! date will throw an error if the result of $(...) is empty and there is no blank in the "" ...
+			LASTTWEETDB=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
+			NOW=$(date -R)
+			ONEHAGO=$(date -d "$NOW -1 hour" +%s)
+			#echo "Last Tweet Time according to DB: '$LASTTWEETDB'"
+			#echo "Time one hour ago: '$ONEHAGO'"
+			if [ $LASTTWEETDB -lt $ONEHAGO ] ; then
+				echo "Last logged regular Tweet (not counting lifesigns) was more than 1 h ago (Tweet in DB: '$(date -d "@$LASTTWEETDB" +%X)' | Now: '$(date -d "$NOW" +%X)')"
+				echo "Determining timestamp of last visible tweet ..."
+				LASTTWEET=$(determine_last_tweet "$USERAGENT")
+				LTT=${LASTTWEET/|*}
+				if [ $LASTTWEETDB -lt $LTT ] ; then
+					echo "Updating timestamp to timestamp of actual last visible tweet ($(date -d "@$LTT" +"%F %X"))"
+					sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('timestamp','status') VALUES (datetime("'$LTT'","unixepoch"),"lastvisibletweet")'
+				fi
+
+			else
+				LTT=$LASTTWEETDB
+			fi
+			if [ $LTT -lt $ONEHAGO ] ; then
+				echo "Last visible Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
+				echo "Tweeting lifesign."
+				local CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/ - /\n/g')
+				local CW=$(echo -e "$CURRENTWEATHER" | awk '$0 ~ /Current weather in Ulm/ { $1=$2=$3=$4="" ; print $0 }')
+				local SUNRISE=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunrise/ { $1=""; print $0}')
+				local SUNSET=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunset/ { $1=""; print $0}')
+				local FIVEDAYFORECAST=$(ansiweather -f 6 -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>/\n/g' -e 's/ - /\n/g' | awk '$0 ~/°C/ { print $0 }')
+				local TODAYSFORECAST=$(echo -e "$FIVEDAYFORECAST" | awk -F':' '{ print $2 }' | head -n 1)
+				local CONVERTEDDATES=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $1 }' | xargs -n 1 -I XXX date -d "XXX" +%d.%m.%y | tr '\n' ' ')
+				local CDA=($CONVERTEDDATES)
+				local REMAININGFORECAST=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $2 }' | sed -e 's/ /_/g' -e 's/_$//g')
+				local RFA=($REMAININGFORECAST)
+				local FDFM="$FIVEDAYSFORECASTMSG"
+				local ONEBOT="$(echo -e '\U0001f916')"
+				local ONENOISE1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+				local ONENOISE2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+				local THREEBOTS="$(echo -e '\U0001f916\U0001f916\U0001f916')"
+				local THREENOISES1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+				local THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
+				# chatter
+				local TODAYEPOCH=$(date -d "$(date +%F)" +%s)
+				local THREEHOURSAGOEPOCH=$(date -d '-3 hours' +%s)
+				local LASTTODAYFORECASTEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTTODAYFORECASTEPOCHDB" ] ; then
+					local LASTTODAYFORECASTEPOCH=$(date -d "$LASTTODAYFORECASTEPOCHDB" +%s)
+				else
+					local LASTTODAYFORECASTEPOCH=""
+				fi
+				local LASTFIVEDAYSFORECASTEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTFIVEDAYSFORECASTEPOCHDB" ] ; then
+					local LASTFIVEDAYSFORECASTEPOCH=$(date -d "$LASTFIVEDAYSFORECASTEPOCHDB" +%s)
+				else
+					local LASTFIVEDAYSFORECASTEPOCH=""
+				fi
+				local LASTSUNRISESUNSETEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTSUNRISESUNSETEPOCHDB" ] ; then
+					local LASTSUNRISESUNSETEPOCH=$(date -d "$LASTSUNRISESUNSETEPOCHDB" +%s)
+				else
+					local LASTSUNRISESUNSETEPOCH=""
+				fi
+				local LASTEVENTSEPOCHDB=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasteventstweet" ORDER BY timestamp DESC LIMIT 1')
+				if [ -n "$LASTEVENTSEPOCHDB" ] ; then
+					local LASTEVENTSEPOCH=$(date -d "$LASTEVENTSEPOCHDB" +%s)
+				else
+					local LASTEVENTSEPOCH=""
+				fi
+
+				local DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
+				local LIFESIGNCOUNTER=0
+				while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
+					local CHATTER=$((RANDOM%7))
+					# local CHATTER=$(timeout 60 wget -q -O - 'http://www.miraclesalad.com/webtools/random.php?i=1&u=1&low=1&high=6&groups=1&Submit=Go' | grep '<p class="output">' | awk -F'>|<' '{ print $3}' | tr -d -c '[:digit:]')
+					echo "CHATTER: '$CHATTER'"
+					case $CHATTER in
+						0)	# let's try today's weather forecast
+							# due to time zone issues, weather forecasts don't work before 7am
+							if [ $(date +%H) -gt 7 ] && ( [ -z "$LASTTODAYFORECASTEPOCH" ] || [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ); then
+									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
+									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
+							else
+								echo 'Unable to use weather forecast of today.'
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -gt 7 ] ; then
+									echo "Current hour was greater than 7"
+								else
+									echo "Current hour was less than 7"
+								fi
+								echo "LASTTODAYFORECASTEPOCH: '$LASTTODAYFORECASTEPOCH'"
+								if [ -n "$LASTTODAYFORECASTEPOCH" ] ; then
+									echo  'LASTTODAYFORECASTEPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTTODAYFORECASTEPOCH was less than TODAYEPOCH'
+								else
+									echo 'LASTTODAYFORECASTEPOCH was more than TODAYEPOCH'
+								fi
+							fi
+							;;
+						1)	# let's try a five-day weather forecast
+							if [ $(date +%H) -gt 7 ] && ( [ -z "$LASTFIVEDAYSFORECASTEPOCH" ] || [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ); then
+									LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
+									LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
+									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
+							else
+								echo 'Unable to use five-day weather forecast.'
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -gt 7 ] ; then
+									echo "Current hour was greater than 7"
+								else
+									echo "Current hour was less than 7"
+								fi
+								echo "LASTFIVEDAYSFORECASTEPOCH: '$LASTFIVEDAYSFORECASTEPOCH'"
+								if [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] ; then
+									echo  'LASTFIVEDAYFORECASTEPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTFIVEDAYSFORECASTEPOCH was less than TODAYEPOCH'
+								else
+									echo 'LASTFIVEDAYSFORECASTEPOCH was more than TODAYEPOCH'
+								fi
+							fi
+							;;
+						2)	# let's try unrise and sunset
+							if [ -z "$LASTSUNRISESUNSETEPOCH" ] || [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
+									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
+									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
+							else
+								echo 'Unable to use last sunrise/sunset today.'
+								echo "LASTSUNRISESUNSETEPOCH: '$LASTSUNRISESUNSETEPOCH'"
+								if [ -n "$LASTSUNRISESUNSETEPOCH" ] ; then
+									echo  'LASTSUNRISESUNSETPOCH was not empty.'
+								fi
+								echo "TODAYEPOCH: '$TODAYEPOCH'"
+								if [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ] ; then
+									echo 'LASTSUNRISESUNSETEPOCH was less than TODAYEPOCH'
+								else
+									echo 'LASTSUNRISESUNSETEPOCH was less than TODAYEPOCH'
+								fi
+
+							fi
+							;;
+						3)	# let's try local news
+							NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
+							echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (local news list scraper)"
+							sleep $NEWSSLEEP
+							LISTNAME="https://twitter.com/${BOTNAME/@}/lists/news-l"
+							EXTERNALLOCALNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME")
+							if [ -n "$EXTERNALLOCALNEWS" ] ; then
+								echo "Tweeting latest external local news as lifesign."
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EXTERNALLOCALNEWS"
+							else
+								echo "External local news list came up empty."
+							fi
+							;;
+						4)	# let's try competitor news
+							NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
+							echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (competitor news list scraper)"
+							sleep $NEWSSLEEP
+							LISTNAME="https://twitter.com/${BOTNAME/@}/lists/competition"
+							COMPETITORNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
+							if [ -n "$COMPETITORNEWS" ] ; then
+								echo "Tweeting latest competitor news as lifesign."
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$COMPETITORNEWS"
+							else
+								echo "Competitor news list came up empty."
+							fi
+							;;
+						5)	# let's try nation-wide news
+							NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
+							echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (national news list scraper)"
+							sleep $NEWSSLEEP
+							LISTNAME="https://twitter.com/${BOTNAME/@}/lists/news-n"
+							NATIONWIDENEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
+							if [ -n "$NATIONWIDENEWS" ] ; then
+								echo "Tweeting last external national news as lifesign."
+								LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$NATIONWIDENEWS"
+							else
+								echo "National news list came up empty."
+							fi
+							;;
+						6)	# let's try local events
+							# doesn't really make sense past 20:00, unless Friday (5) or Saturday (6) (Sunday would be 0)
+							# if we wanted to get really fancy, we could add a "is the next day a public holiday" detection
+							if ([ $(date +%H) -lt 20 ] || [ $(date +%w) -gt 4 ]) && \
+								([ -z "$LASTEVENTSEPOCH" ] || [ $LASTEVENTSEPOCH -lt $THREEHOURSAGOEPOCH ] ); then
+								EVENTSUGGESTION=$(get_external_event_suggestion)
+								if [ -n "$EVENTSUGGESTION" ] ; then
+									echo "Tweeting event suggestion as lifesign."
+									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
+									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasteventstweet")'
+								else
+									echo "Event suggestion list came up empty."
+								fi
+							else
+								echo "Too late in the day to tweet event suggestions or last event suggestion less than 3h ago."
+								echo "Current hour: '$(date +%H)'"
+								if [ $(date +%H) -lt 20 ] ; then
+									echo "Current hour was less than 20"
+								else
+									echo "Current hour was greater than 20"
+								fi
+								if [ -z "$LASTEVENTSEPOCH" ]; then
+									echo "LASTEVENTSEPOCH was empty."
+								else
+							 		echo "LASTEVENTSEPOCH was: '$LASTEVENTSEPOCH'"
+								fi
+								echo "THREEHOURSAGOEPOCH: '$THREEHOURSAGOEPOCH'"
+								if	[ $LASTEVENTSEPOCH -lt $THREEHOURSAGOEPOCH ] ; then
+									echo 'LASTEVENTSEPOCH was less than TODAYEPOCH'
+								else 
+									echo 'LASTEVENTSEPOCH was more than TODAYEPOCH'
+								fi
+
+							fi
+							;;
+						*)	# catch-all, just do nothing here
+							# either we'll hit a working entry with the next iteration,
+							# or we'll end up with the default chatter message
+							: # NOP
+							;;
+					esac
+					LIFESIGNCOUNTER=$((LIFESIGNCOUNTER+1))
+				done
+
+				# with a 50% chance, let's show the current weather conditions
+				if [ -z "$LIFESIGN" ] && [ $((RANDOM%2)) -gt 0 ] ; then
+					echo -e "Tweeting current weather conditions as lifesign."
+					LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
+				fi
+
+				# no luck, then use the default chatter message
+				[ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && LIFESIGN+=" $(date +"%x %X")"
+				echo -e "Lifesign message is: '$LIFESIGN'"
+
+				eval "$TWITTER -status=\"$LIFESIGN\""
+				sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
+
+			else
+				echo "Last Tweet was less than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)').  No action needed."
+			fi
+		fi
+	fi
 }
 
 function tweet_and_update() {
@@ -186,7 +495,7 @@ function tweet_and_update() {
 	local PRIMETABLE=$4
 	local TWEETEDLINK=0
 
-	local SCRAPEDPAGE=$(scrape_page "$SINGLEURL" "$USERAGENT")
+	local SCRAPEDPAGE=$(scrape_swp_page "$SINGLEURL" "$USERAGENT")
 
 	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
 	if [ -z "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
@@ -219,6 +528,7 @@ function tweet_and_update() {
 		elif ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="carousel' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="image">' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q 'class="btn btn-primary more"' && \
+		     ! echo -e "$SCRAPEDPAGE" | grep -q '<div class="inline-element-image-gallerie' && \
 		     ! echo -e "$SCRAPEDPAGE" | grep -q '<figcaption' ; then
 			echo "Skipping '$SINGLEURL' - no images at all detected in page, probably a ticker message."
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","tickeronly")'
@@ -231,13 +541,30 @@ function tweet_and_update() {
 		fi
 	fi
 
+	# we need this seemingly identical if block because already_tweeted might get set (to "skip") in the block above, so we should only work on what is left after those checks above
 	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
+		# Add SWPPlus Hashtag when required
+		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' ; then
+			ADORPLUS="#SWPPlus "
+			# Add SWPPlus Hashtag when required (new, beta detection)
+		elif echo -e "$SCRAPEDPAGE" | grep -q '<svg class="icon p-1 paywall">' ; then
+			ADORPLUS="#SWPPlus_beta1 "
+			# Add SWPPlus Hashtag when required (new, beta detection)
+		elif echo -e "$SCRAPEDPAGE" | grep -q "<use xlink:href='#freemium-swpo'></use>" ; then
+			ADORPLUS="#SWPPlus_beta2 "
+		# Add SWPAnzeige Hashtag when required
+		elif echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-red">' | grep -q 'ANZEIGE' || echo -e "$SCRAPEDPAGE" | grep -A2 '<span class="preface d-block font-set-2 txt-color-primary">' | grep -q 'ANZEIGE' ; then
+			ADORPLUS="#SWPAnzeige "
+		else
+			ADORPLUS=""
+		fi
+
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
-		# TODO FIXME: a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
-		TITLE=$(echo "$SCRAPEDPAGE" | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's/[^a-zA-Z0-9äöüÄÖÜß%€„“ _/.,!?&():=-]/ /g')
+		# a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
+		TITLE=$(echo "$SCRAPEDPAGE" | grep -A10 title | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's#[^a-zäöüA-ZÄÖÜ0-9ß%€„“ _/.,!?&():=-]# #g' -e 's/\(\S\S\)\.\(\S\S\)/\1. \2/g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
 		fi
@@ -247,7 +574,7 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 
-			TITLE="${PREFACE}${TITLE}"
+			TITLE="${ADORPLUS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
 			MAXTITLELENGTH=$((280-23-1))
@@ -273,26 +600,64 @@ function tweet_and_update() {
 					fi
 				fi
 				if ! [ $TWEETEDLINK -eq 1 ] ; then
-
+					# debug: Sometimes we see tweets containing raw html code, merely stripped off <> characters.  Trying to find out why ...
+					if echo -e "$MESSAGE" | grep -q 'doctype' ; then
+						echo -e "$SCRAPEDPAGE" >$TEMPDIR/scrapedpage.doctype.error
+					fi
 					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
-					# so far, all command line twitter clients we tried out were dumb, and did not provide a return code in case of errors
-					# that's why we need to perform a webscrape to check if our tweet went out
-					echo "$MESSAGE" | eval "$TWITTER"
+					TWEETID=""
+					TRYAGAIN=0
+					# try tweeting twice - if the first attempt returns no tweet ID, but also doesn't complain about tweeting too fast
+					while [ -z "$TWEETID" ] && [ $TRYAGAIN -lt 2 ]; do
+						TWEETID=$(echo "$MESSAGE" | eval "$TWITTER")
+						if [ "$TWEETID" = "ETOOFAST" ]; then
+							RANDRETRYDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+							sleep $RANDRETRYDELAY
+						fi
+						TRYAGAIN=$((TRYAGAIN+1))
+					done
 					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 					echo -n "Sleeping for $RANDCHECKDELAY to avoid false alerts when checking for tweet visibility ..."
 					sleep $RANDCHECKDELAY
-					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
-						echo -e " - Tweeted."
-						TWEETEDLINK=1
-					else
-						# unable to spot my own tweet!
-						echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+
+					if [ "$TWEETID" = "ETOOFAST" ]; then
+						# TWEETING TOO FAST!
+						echo -e "\nError tweeting '$MESSAGE'. Tweeting too fast! Storing in table and marking as not yet tweeted."
 						echo -e "--------------" >> swpscraper.error
 						echo -e "$TITLE" >>swpscraper.error
 						echo -e "--------------" >> swpscraper.error
 						BACKOFF=1
+					elif [ -z "$TWEETID" ]; then
+						# if we didn't receive a tweet ID as a reply, we need to perform a webscrape to check if our tweet went out
+						LASTTWEET=$(determine_last_tweet "$USERAGENT")
+						if already_tweeted "$LASTTWEET" "$TITLE" "$SINGLEURL" ; then
+							echo -e " - Tweeted."
+							TWEETEDLINK=1
+						else
+							# unable to spot my own tweet!
+							echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+							echo -e "--------------" >> swpscraper.error
+							echo -e "$TITLE" >>swpscraper.error
+							echo -e "--------------" >> swpscraper.error
+							BACKOFF=1
+						fi
+					else
+						# with a tweet ID, we go straight for a quick check
+						SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}/status/${TWEETID}" "$USERAGENT")
+						if echo -e "$SCRAPEDPAGE" | grep -q ">Tweet not found<"; then
+							# unable to spot my own tweet!
+							echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
+							echo -e "--------------" >> swpscraper.error
+							echo -e "$TITLE" >>swpscraper.error
+							echo -e "--------------" >> swpscraper.error
+							BACKOFF=1
+						else
+							# This is cheating, as already_tweeted checks if the content of the third parameter is contained in the first
+							already_tweeted "$SINGLEURL" "$TITLE" "$SINGLEURL"
+							echo -e " - Tweeted."
+							TWEETEDLINK=1
+						fi
 					fi
 				fi
 			else
@@ -326,157 +691,6 @@ function tweet_and_update() {
 		echo "Setting BACKOFF."
 		return 1
 	else
-		if [ -z "$(sqlite3 $DBFILE 'SELECT timestamp FROM state WHERE status="lastlifesigncheck" ORDER BY timestamp DESC')" ] ; then
-			# set flag that we've been here during this run
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigncheck")'
-			# Determine last tweet time
-			if ! ( [ $TWEETEDLINK -eq 1 ] | [ "$PRIMETABLE" = "yes" ] ) ; then
-				if [ -z "$LASTTWEET" ] ; then
-					local RANDLTTDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-					echo "Sleeping for $RANDLTTDELAY to avoid bot detection when checking for last visible tweet (lifesign check)"
-					sleep $RANDLTTDELAY
-					LASTTWEET=$(determine_last_tweet "$USERAGENT")
-					# TODO FIXME do we have to call this somewhere here as well? sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
-				fi
-				LTT=${LASTTWEET/|*}
-				NOW=$(date -R)
-				ONEHAGO=$(date -d "$NOW -1 hour" +%s)
-				LASTLIFESIGNTWEETATTEMPT=$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')
-				if [ -z "$LASTLIFESIGNTWEETATTEMPT" ] ; then
-					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "2 hours ago" +%s)
-					echo "No Lifesign attempt found in DB."
-				else
-					LASTLIFESIGNTWEETATTEMPTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastlifesigntweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-					echo "Lifesign attempt found in DB."
-				fi
-				#echo "Last Tweet Time: '$LTT'"
-				#echo "Time one hour ago: '$ONEHAGO'"
-				if [ $LTT -lt $ONEHAGO ] ; then
-					echo "Last Tweet was more than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)')"
-					if [ $LASTLIFESIGNTWEETATTEMPTEPOCH -lt $ONEHAGO ] ; then
-						echo "Tweeting lifesign."
-						CURRENTWEATHER=$(ansiweather -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>//g' -e 's/ - /\n/g')
-						CW=$(echo -e "$CURRENTWEATHER" | awk '$0 ~ /Current weather in Ulm/ { $1=$2=$3=$4="" ; print $0 }')
-						SUNRISE=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunrise/ { $1=""; print $0}')
-						SUNSET=$(echo -e "$CURRENTWEATHER" | awk '$0 ~/Sunset/ { $1=""; print $0}')
-						FIVEDAYFORECAST=$(ansiweather -f 6 -u metric -s true -a false -l "$LOCATION" -d true | sed -e 's/=>/\n/g' -e 's/ - /\n/g' | awk '$0 ~/°C/ { print $0 }')
-						TODAYSFORECAST=$(echo -e "$FIVEDAYFORECAST" | awk -F':' '{ print $2 }' | head -n 1)
-						CONVERTEDDATES=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $1 }' | xargs -n 1 -I XXX date -d "XXX" +%d.%m.%y | tr '\n' ' ')
-						CDA=($CONVERTEDDATES)
-						REMAININGFORECAST=$(echo -e "$FIVEDAYFORECAST" | tail -n 5 | awk -F':' '{ print $2 }' | sed -e 's/ /_/g' -e 's/_$//g')
-						RFA=($REMAININGFORECAST)
-						FDFM="$FIVEDAYSFORECASTMSG"
-						ONEBOT="$(echo -e '\U0001f916')"
-						ONENOISE1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
-						ONENOISE2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
-						THREEBOTS="$(echo -e '\U0001f916\U0001f916\U0001f916')"
-						THREENOISES1="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
-						THREENOISES2="*${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}* *${NOISEARRAY[$((RANDOM%NOISEAMOUNT))]}*"
-						# chatter
-						TODAYEPOCH=$(date -d "$(date +%F)" +%s)
-						LASTTODAYFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lasttodayforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-						LASTFIVEDAYSFORECASTTEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastfivedaysforecasttweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-						LASTSUNRISESUNSETEPOCH=$(date -d "$(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status = "lastsunrisesunsettweet" ORDER BY timestamp DESC LIMIT 1')" +%s)
-
-						DEFAULTLIFESIGNLENGTH=${#LIFESIGN}
-						LIFESIGNCOUNTER=0
-						while [ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && [ $LIFESIGNCOUNTER -lt 10 ] ; do
-							CHATTER=$((RANDOM%7))
-							case $CHATTER in
-								0)	# let's try today's weather forecast
-									# due to time zone issues, weather forecasts don't work before 7am
-									if [ $(date +%H) -gt 7 ] && [ -n "$LASTTODAYFORECASTEPOCH" ] && [ $LASTTODAYFORECASTEPOCH -lt $TODAYEPOCH ] ; then
-											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$TODAYSFORECASTMSG: $TODAYSFORECAST\n$ONEBOT $ONENOISE2 $ONEBOT"
-											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lasttodayforecasttweet")'
-									fi
-									;;
-								1)	# let's try a five-day weather forecast
-									if [ $(date +%H) -gt 7 ] && [ -n "$LASTFIVEDAYSFORECASTEPOCH" ] && [ $LASTFIVEDAYSFORECASTEPOCH -lt $TODAYEPOCH ]; then
-											LIFESIGN="$THREEBOTS $THREENOISES1 $THREEBOTS\n$FDFM\n${CDA[0]}:${RFA[0]//_/ }\n${CDA[1]}:${RFA[1]//_/ }\n${CDA[2]}:${RFA[2]//_/ }"
-											LIFESIGN+="\n${CDA[3]}:${RFA[3]//_/ }\n${CDA[4]}:${RFA[4]//_/ }\n$THREEBOTS $THREENOISES2 $THREEBOTS"
-											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfivedaysforecasttweet")'
-									fi
-									;;
-								2)	# let's try unrise and sunset
-									if [ -n "$LASTSUNRISESUNSETEPOCH" ] && [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
-											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
-											sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
-									fi
-									;;
-								3)	# let's try local news
-									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
-									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (local news list scraper)"
-									sleep $NEWSSLEEP
-									LISTNAME="https://twitter.com/${BOTNAME/@}/lists/news-l"
-									EXTERNALLOCALNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME")
-									if [ -n "$EXTERNALLOCALNEWS" ] ; then
-										echo "Tweeting latest external local news as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EXTERNALLOCALNEWS"
-									fi
-									;;
-								4)	# let's try competitor news
-									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
-									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (competitor news list scraper)"
-									sleep $NEWSSLEEP
-									LISTNAME="https://twitter.com/${BOTNAME/@}/lists/competition"
-									COMPETITORNEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
-									if [ -n "$COMPETITORNEWS" ] ; then
-										echo "Tweeting latest competitor news as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$COMPETITORNEWS"
-									fi
-									;;
-								5)	# let's try nation-wide news
-									NEWSSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s"
-									echo "Sleeping for $NEWSSLEEP to avoid bot detection on Twitter (national news list scraper)"
-									sleep $NEWSSLEEP
-									LISTNAME="https://twitter.com/${BOTNAME/@}/lists/news-n"
-									NATIONWIDENEWS=$(get_external_news_infos "$USERAGENT" "$LISTNAME" "$CITYGREP")
-									if [ -n "$NATIONWIDENEWS" ] ; then
-										echo "Tweeting last external national news as lifesign."
-										LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$NATIONWIDENEWS"
-									fi
-									;;
-								6)	# let's try local events
-									# doesn't really make sense past 20:00, unless Friday (5) or Saturday (6) (Sunday would be 0)
-									# if we wanted to get really fancy, we could add a "is the next day a public holiday" detection
-									if [ $(date +%H) -lt 20 ] || [ $(date +%w) -gt 4 ]; then
-										EVENTSUGGESTION=$(get_external_event_suggestion)
-										if [ -n "$EVENTSUGGESTION" ] ; then
-											echo "Tweeting event suggestion as lifesign."
-											LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$EVENTSUGGESTION"
-										fi
-									fi
-									;;
-								*)	# catch-all, just do nothing here
-									# either we'll hit a working entry with the next iteration,
-									# or we'll end up with the default chatter message
-									: # NOP
-									;;
-							esac
-							LIFESIGNCOUNTER=$((LIFESIGNCOUNTER+1))
-						done
-
-						# with a 50% chance, let's show the current weather conditions
-						if [ -z "$LIFESIGN" ] && [ $((RANDOM%2)) -gt 0 ] ; then
-						       	echo -e "Tweeting current weather conditions as lifesign."
-							LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$CURRENTWEATHERMSG $(date +%X): $CW\n$ONEBOT $ONENOISE2 $ONEBOT"
-						fi
-
-						# no luck, then use the default chatter message
-						[ ${#LIFESIGN} -eq $DEFAULTLIFESIGNLENGTH ] && LIFESIGN+=" $(date +"%x %X")"
-						echo -e "Lifesign message is: '$LIFESIGN'"
-
-						eval "$TWITTER -status=\"$LIFESIGN\""
-						sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastlifesigntweet")'
-					else
-						echo "Last attempt to tweet a lifesign was less than an hour ago, but it did not become visible.  Rate limiting suspected, backing off."
-						return 1
-					fi
-				else
-					echo "Last Tweet was less than 1 h ago (Tweet: '$(date -d "@$LTT" +%X)' | Now: '$(date -d "$NOW" +%X)').  No action needed."
-				fi
-			fi
-		fi
 		return 0
 	fi
 }
@@ -526,9 +740,12 @@ fi
 # sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime"),url FROM swphomepage ORDER BY timestamp'
 
 # check for shadowban
-if ! (lynx -dump 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' | grep -A 1 -i "Search Results" | grep -q "$BOTNAME") ; then
-	echo "No search results - have we been shadowbanned?"
-fi
+# nitter.net doesn't work here ... yet? (it always shows search results)
+# if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://nitter.net/'"${BOTNAME/@}"'/search?f=tweets&q='"${BOTNAME/@}"'&since=&until=&near=&src=typd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
+# this doesn't work any more as twitter is blocking anonymous (non-logged-in) searches and also requires javascript, even on mobile
+# if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
+# 	echo "No search results - have we been shadowbanned?"
+# fi
 
 
 URLLIST=""
@@ -553,14 +770,15 @@ for SINGLEBASEURL in $BASEURL; do
 	# TODO replace lynx -dump with a tool that allows setting a referer, for faking a human surf experience
 	if [ "$LINKTYPE" = "noticker" ] ; then
 		# This should keep the update frequency down, as it will ignore the "ticker" on the front page, if pointed at the front page.
-		URLLIST+="$(LANG=C lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
+		# NOTE: This is now broken and will also ignore some of the links on the main page.  Recommendation is to use fullpage and white-/blacklists instead.
+		URLLIST+="$(LANG=C timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | sed '0,/Hidden links:$/d' | awk ' $2 ~ /^http.*html$/ { print $2 }' )\n"
 	elif [ "$LINKTYPE" = "tickeronly" ]; then
 		# Alternatively, the following call will *only* tweet the "ticker" at the bottom of the front page
 		# (however, it doesn't work for subpages like 'https://www.swp.de/suedwesten/staedte/ulm', so only use it for the front page)
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
+		URLLIST+="$(timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=ignore "$SINGLEBASEURL" | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	else
 		# Default: this will scrape all news from the page, including the "ticker" at the bottom of the front page, if pointed at the front page
-		URLLIST+="$(lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
+		URLLIST+="$(timeout 60 lynx -useragent "$USERAGENT" -dump -hiddenlinks=listonly "$SINGLEBASEURL" 2>/dev/null | awk ' $2 ~ /^http.*html$/ { print $2 }')\n"
 	fi
 	#  [ -z "$FAKEREFERER" ] && FAKEREFERER=$SINGLEBASEURL # for future use - pretend user was following links from first page in list
 	INITIALRANDSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s" # subsequent runs don't need such a long interval
@@ -596,9 +814,10 @@ done
 
 if [ $BACKOFF -eq 1 ]; then
 	echo "Backed off due to errors."
-	[ -n "$ALTERNATETWITTERCREDENTIALSFILE" ] && eval "$ALTERNATETWITTERCOMMAND -status='"$(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')"'"
+	# $(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')
 	exit 1
 else
+#	heartbeat "$USERAGENT" "$PRIMETABLE"
 	echo "Done."
 	exit 0
 fi
