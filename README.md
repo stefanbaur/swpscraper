@@ -12,6 +12,7 @@ This file (actual code below) needs to be chmodded 755 and placed in `../tweepy/
 #!/usr/bin/python3
 import tweepy
 
+# You need to insert your Twitter API keys here!
 consumer_key = ""
 consumer_secret = ""
 access_token = ""
