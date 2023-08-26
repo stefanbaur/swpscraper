@@ -604,7 +604,7 @@ function tweet_and_update() {
 					if echo -e "$MESSAGE" | grep -q 'doctype' ; then
 						echo -e "$SCRAPEDPAGE" >$TEMPDIR/scrapedpage.doctype.error
 					fi
-					echo "About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
+					echo " - About to tweet (in $RANDDELAY): '$MESSAGE' ($((${#TITLE}+24)) characters in total - link and preceding blank count as 24 chars)"
 					sleep $RANDDELAY
 					TWEETID=""
 					TRYAGAIN=0
