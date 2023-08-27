@@ -785,6 +785,16 @@ for SINGLEBASEURL in $BASEURL; do
 	INITIALRANDSLEEP="$[ ( $RANDOM % 5 )  + 1 ]s" # subsequent runs don't need such a long interval
 done
 
+if [ -n "$XMLLIST" ]; then
+	for SINGLEBASEXMLURL in $XMLLIST; do
+		INITIALXMLRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
+		echo "Sleeping for $INITIALXMLRANDSLEEP to avoid bot detection on '$SINGLEBASEXMLURL'"
+		sleep $INITIALXMLRANDSLEEP
+		URLLIST+=$(wget -O - -U "$USERAGENT" -q $SINGLEBASEXMLURL | grep ">http" | sed -e 's/^.*>\(http.*html\)<.*$/\1/')
+		URLLIST+=$(echo -e "\n")
+	done
+fi
+
 URLLIST=$(echo -e "$URLLIST" | uniq )
 
 if [ -n "$WHITELIST" ]; then
