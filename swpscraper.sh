@@ -610,8 +610,9 @@ function tweet_and_update() {
 					TRYAGAIN=0
 					# try tweeting twice - if the first attempt returns no tweet ID, but also doesn't complain about tweeting too fast
 					while [ -z "$TWEETID" ] && [ $TRYAGAIN -lt 2 ]; do
-						TWEETID=$(echo "$MESSAGE" | eval "$TWITTER")
+						TWEETID=$(echo "$MESSAGE" | eval "$TWITTER" | tail -n 1)
 						if [ "$TWEETID" = "ETOOFAST" ]; then
+							# This should never happen, as our tweepy script is set to retry automatically ...
 							RANDRETRYDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
 							sleep $RANDRETRYDELAY
 						fi
