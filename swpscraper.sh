@@ -21,6 +21,9 @@
 # Twitter handle to use
 [ -z "BOTNAME" ] && BOTNAME="@SWPde_bot"
 
+#Tweet Visibility Check URL
+[ -z "VISIBILITYCHECKURL" ] && VISIBILITYCHECKURL="https://twiiit.com/${BOTNAME/@}"
+
 # Tweets will be prefaced with this string:
 #[ -z "$PREFACE" ] && PREFACE=".@SWPde #SWP #SWPde "
 
@@ -168,7 +171,7 @@ function determine_last_tweet() {
 	local TWEETTIMESTAMPS=""
 	local SCRAPEDPAGE
 	# we need to grab the first two entries and sort them, in case there is a pinned tweet
-	SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}" "$USERAGENT")
+	SCRAPEDPAGE=$(scrape_twitter_page "${VISIBILITYCHECKURL}" "$USERAGENT")
 	TWEETTIMES="$(echo -e "$SCRAPEDPAGE" | grep 'class="tweet-date' | sed -e 's/^.*title="\([^"]*\)".*$/\1|/' -e 's/ · / /')"
 	
 	OLDIFS=$IFS; IFS="|"
@@ -666,7 +669,7 @@ function tweet_and_update() {
 						fi
 					else
 						# with a tweet ID, we go straight for a quick check
-						SCRAPEDPAGE=$(scrape_twitter_page "https://nitter.net/${BOTNAME/@}/status/${TWEETID}" "$USERAGENT")
+						SCRAPEDPAGE=$(scrape_twitter_page "${VISIBILITYCHECKURL}/status/${TWEETID}" "$USERAGENT")
 						if echo -e "$SCRAPEDPAGE" | grep -q ">Tweet not found<"; then
 							# unable to spot my own tweet!
 							echo -e "\nError tweeting '$MESSAGE'. Storing in table and marking as not yet tweeted."
