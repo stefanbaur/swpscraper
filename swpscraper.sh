@@ -577,7 +577,11 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
 			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print "#" $2 " "}')
-			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ' | sed -e 's/ \([[:upper:]]\)/ #\1/g')
+			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
+			for KEYWORD in $KEYWORDS; do
+				TITLE=$(echo "$TITLE" | sed -e "s/^$KEYWORD/#$KEYWORD/" -e "s/ $KEYWORD/ #$KEYWORD/")
+				KEYWORDS=$(echo "$KEYWORDS" | sed -e 's/$KEYWORD//' | tr -s ' ')
+			done
 			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS}"
 			TITLE="${ADORPLUS}${LOCATION}${KEYWORDS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
