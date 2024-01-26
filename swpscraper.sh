@@ -581,7 +581,7 @@ function tweet_and_update() {
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
 			NEWSLOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}')
 			# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-			TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/")
+                        TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
 			if echo "$TITLE" | grep -q "#${NEWSLOCATION}" ; then
 				NEWSLOCATION=""
 			else
@@ -591,7 +591,7 @@ function tweet_and_update() {
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
 			for KEYWORD in $KEYWORDS; do
-				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/")
+				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/" -e "s/#${KEYWORD} \([[:punct:]]\)/#${KEYWORD}\1/")
 				KEYWORDS=$(echo "$KEYWORDS" | sed -e "s/${KEYWORD}//" | tr -s ' ')
 			done
 			# Remove leading and trailing blanks
