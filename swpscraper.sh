@@ -576,11 +576,13 @@ function tweet_and_update() {
 
 			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
-			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print "#" $2 " "}')
+			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}')
 			# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 			TITLE=$(echo "$TITLE" | sed -e "s/^${LOCATION}/#${LOCATION}/" -e "s/ ${LOCATION}/ #${LOCATION}/")
 			if echo "$TITLE" | grep -q "#${LOCATION}" ; then
 				LOCATION=""
+			else
+				LOCATION="#${LOCATION} "
 			fi
 
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
