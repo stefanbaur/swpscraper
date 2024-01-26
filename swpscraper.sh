@@ -574,16 +574,25 @@ function tweet_and_update() {
 
 		if ! [ "$PRIMETABLE" = "yes" ]; then
 
-			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
+			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
 			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print "#" $2 " "}')
+			# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 			TITLE=$(echo "$TITLE" | sed -e "s/^${LOCATION}/#${LOCATION}/" -e "s/ ${LOCATION}/ #${LOCATION}/")
+			if echo "$TITLE" | grep -q "#${LOCATION}" ; then
+				LOCATION=""
+			fi
+
+			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
 			for KEYWORD in $KEYWORDS; do
 				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/")
 				KEYWORDS=$(echo "$KEYWORDS" | sed -e "s/${KEYWORD}//" | tr -s ' ')
 			done
-			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS}"
+			# Remove leading and trailing blanks
+			KEYWORDS=${KEYWORDS# }
+			KEYWORDS=${KEYWORDS% }
+			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS} "
 			TITLE="${ADORPLUS}${LOCATION}${KEYWORDS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
