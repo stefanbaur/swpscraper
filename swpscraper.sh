@@ -577,6 +577,7 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
 			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print "#" $2 " "}')
+			TITLE=$(echo "$TITLE" | sed -e "s/^${LOCATION}/#${LOCATION}/" -e "s/ ${LOCATION}/ #${LOCATION}/")
 			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
 			for KEYWORD in $KEYWORDS; do
 				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/")
