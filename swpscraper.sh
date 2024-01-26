@@ -579,13 +579,13 @@ function tweet_and_update() {
 
 			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
-			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}')
+			NEWSLOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}')
 			# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-			TITLE=$(echo "$TITLE" | sed -e "s/^${LOCATION}/#${LOCATION}/" -e "s/ ${LOCATION}/ #${LOCATION}/")
-			if echo "$TITLE" | grep -q "#${LOCATION}" ; then
-				LOCATION=""
+			TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/")
+			if echo "$TITLE" | grep -q "#${NEWSLOCATION}" ; then
+				NEWSLOCATION=""
 			else
-				LOCATION="#${LOCATION} "
+				NEWSLOCATION="#${NEWSLOCATION} "
 			fi
 
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
@@ -598,7 +598,7 @@ function tweet_and_update() {
 			KEYWORDS=${KEYWORDS# }
 			KEYWORDS=${KEYWORDS% }
 			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS} "
-			TITLE="${ADORPLUS}${LOCATION}${KEYWORDS}${PREFACE}${TITLE}"
+			TITLE="${ADORPLUS}${NEWSLOCATION}${KEYWORDS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
 			MAXTITLELENGTH=$((280-23-1))
