@@ -3,6 +3,9 @@
 # source config
 . ./swpscraper.config
 
+# Set minimum random delay value (will add up to 60 seconds on to)
+[ -z "$TWEETMINRANDDELAY" ] && TWEETMINRANDDELAY=600
+
 # Path and file name for sqlite database
 [ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
 
@@ -572,9 +575,11 @@ function tweet_and_update() {
 		if ! [ "$PRIMETABLE" = "yes" ]; then
 
 			# IMPORTANT: Update times should be randomized within a 120-180 second interval (to work around twitter's bot/abuse detection and API rate limiting)
-			RANDDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
-
-			TITLE="${ADORPLUS}${PREFACE}${TITLE}"
+			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
+			LOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print "#" $2 " "}')
+			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ' | sed -e 's/ \([[:upper:]]\)/ #\1/g')
+			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS}"
+			TITLE="${ADORPLUS}${LOCATION}${KEYWORDS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
 			MAXTITLELENGTH=$((280-23-1))
