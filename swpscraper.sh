@@ -749,6 +749,46 @@ sqlite3 $DBFILE 'delete from externalurls where timestamp < datetime("now","-'${
 # reset lifesigncheck
 sqlite3 $DBFILE 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
 
+TWEETSPERDAY=99999999999
+while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
+	TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours")')
+	if [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; then
+		DAYLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
+		if [ $DAYLIMITDIFF -lt 2 ]; then
+			DAYLIMITDIFF=2
+		fi
+		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT '$DAYLIMITDIFF)
+		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
+		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
+		echo "Sleeping $SLEEPTIME seconds and trying again."
+		sleep $SLEEPTIME
+	fi
+done
+
+if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
+	TWEETSPERMONTH=999999999999999999
+	while [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; do
+		TWEETSPERMONTH=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days")')
+		if [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; then
+			MONTHLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
+			if [ $MONTHLIMITDIFF -lt 2 ]; then
+				MONTHLIMITDIFF=2
+			fi
+			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp ASC LIMIT '$MONTHLIMITDIFF)
+			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
+			echo "Our 30 day tweet limit is: $MAXTWEETSPERMONTH. Current amount of tweets within the last 30 days: $TWEETSPERMONTH"
+			echo "Sleeping $SLEEPTIME seconds and trying again."
+			sleep $SLEEPTIME
+		fi
+	done
+else
+	echo "Warning: Unable to check possible MAXTWEETSPERMONTH violation as TWEETBACKLOGINDAYS is set to less than 31 days."
+fi
+
 # check if table is empty, switch to priming mode if true
 if [ -z "$(sqlite3 $DBFILE 'SELECT * FROM swphomepage ORDER BY timestamp DESC LIMIT 1')" ]; then
 	echo 'URL table is empty, priming with content without tweeting'
@@ -791,46 +831,6 @@ INITIALRANDSLEEP="$[ ( $RANDOM % 180 )  + 1 ]s"
 #if [ -n "$NATIONALNEWSURL" ]; then
 #		TWEETTHIS="$NATIONALNEWSURLMSG $NATIONALNEWSURL"
 #fi
-
-TWEETSPERDAY=99999999999
-while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
-	TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours")')
-	if [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; then
-		DAYLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
-		if [ $DAYLIMITDIFF -lt 2 ]; then
-			DAYLIMITDIFF=2
-		fi
-		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT '$DAYLIMITDIFF)
-		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
-		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
-		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
-		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
-		echo "Sleeping $SLEEPTIME seconds and trying again."
-		sleep $SLEEPTIME
-	fi
-done
-
-if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
-	TWEETSPERMONTH=999999999999999999
-	while [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; do
-		TWEETSPERMONTH=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days")')
-		if [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; then
-			MONTHLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
-			if [ $MONTHLIMITDIFF -lt 2 ]; then
-				MONTHLIMITDIFF=2
-			fi
-			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp ASC LIMIT '$MONTHLIMITDIFF)
-			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
-			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
-			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
-			echo "Our 30 day tweet limit is: $MAXTWEETSPERMONTH. Current amount of tweets within the last 30 days: $TWEETSPERMONTH"
-			echo "Sleeping $SLEEPTIME seconds and trying again."
-			sleep $SLEEPTIME
-		fi
-	done
-else
-	echo "Warning: Unable to check possible MAXTWEETSPERMONTH violation as TWEETBACKLOGINDAYS is set to less than 31 days."
-fi
 
 for SINGLEBASEURL in $BASEURL; do
 	echo "Sleeping for $INITIALRANDSLEEP to avoid bot detection on '$SINGLEBASEURL'"
