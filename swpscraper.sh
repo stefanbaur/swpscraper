@@ -757,12 +757,12 @@ while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
 		if [ $DAYLIMITDIFF -lt 2 ]; then
 			DAYLIMITDIFF=2
 		fi
-		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT '$DAYLIMITDIFF)
-		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
-		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp DESC LIMIT '$DAYLIMITDIFF)
+		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
-		echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T)) and trying again."
+		echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T | awk -F ':' '{print $1 "h " $2 "m " $3 "s"}')) and trying again."
 		sleep $SLEEPTIME
 	fi
 done
@@ -776,12 +776,12 @@ if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
 			if [ $MONTHLIMITDIFF -lt 2 ]; then
 				MONTHLIMITDIFF=2
 			fi
-			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp ASC LIMIT '$MONTHLIMITDIFF)
-			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
-			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp DESC LIMIT '$MONTHLIMITDIFF)
+			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
+			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 			echo "Our 30 day tweet limit is: $MAXTWEETSPERMONTH. Current amount of tweets within the last 30 days: $TWEETSPERMONTH"
-			echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T)) and trying again."
+			echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T | awk -F ':' '{print $1 "h " $2 "m " $3 "s"}')) and trying again."
 			sleep $SLEEPTIME
 		fi
 	done
