@@ -797,8 +797,8 @@ while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
 	TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours")')
 	if [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; then
 		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT 2')
-		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
-		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
 		echo "Sleeping."
@@ -812,8 +812,8 @@ if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
 		TWEETSPERMONTH=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days")')
 		if [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; then
 			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp ASC LIMIT 2')
-			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
-			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
+			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 			echo "Our 30 day tweet limit is: $MAXTWEETSPERMONTH. Current amount of tweets within the last 30 days: $TWEETSPERMONTH"
 			echo "Sleeping."
