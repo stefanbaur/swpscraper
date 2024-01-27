@@ -800,7 +800,7 @@ while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
 		if [ $DAYLIMITDIFF -lt 2 ]; then
 			DAYLIMITDIFF=2
 		fi
-		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT '$DAYIMITDIFF)
+		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp ASC LIMIT '$DAYLIMITDIFF)
 		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
