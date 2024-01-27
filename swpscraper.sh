@@ -762,7 +762,7 @@ while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
 		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
-		echo "Sleeping $SLEEPTIME seconds and trying again."
+		echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T)) and trying again."
 		sleep $SLEEPTIME
 	fi
 done
@@ -781,7 +781,7 @@ if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
 			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 			echo "Our 30 day tweet limit is: $MAXTWEETSPERMONTH. Current amount of tweets within the last 30 days: $TWEETSPERMONTH"
-			echo "Sleeping $SLEEPTIME seconds and trying again."
+			echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T)) and trying again."
 			sleep $SLEEPTIME
 		fi
 	done
