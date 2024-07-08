@@ -616,25 +616,6 @@ function tweet_and_update() {
 			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
 
-# disabled, as NEWSLOCATIONS are no longer a separate keyword
-#			NEWSLOCATIONS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}'| tr -c '[:alnum:]' ' ')
-#			ALLNEWSLOCATIONS=""
-#			for NEWSLOCATION in $NEWSLOCATIONS; do
-#				OLDTITLE=$TITLE
-#				# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-#				TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
-#				[ "$OLDTITLE" != "$TITLE" ] && ALLNEWSLOCATIONS=$(echo "$ALLNEWSLOCATIONS" | sed -e "s/${NEWSLOCATION}//" | tr -s ' ')
-#			done
-#			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS# }
-#			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS% }
-#			REMAININGNEWSLOCATIONS=""
-#			if [ -n "$ALLNEWSLOCATIONS" ]; then
-#				for NEWSLOCATION in $ALLNEWSLOCATIONS; do
-#					REMAININGNEWSLOCATIONS+="#${NEWSLOCATION} "
-#				done
-#			fi
-# disabled, as NEWSLOCATIONS are no longer a separate keyword
-
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 
 			# This no longer works since SWP ditched InterRed
@@ -646,7 +627,6 @@ function tweet_and_update() {
 			ALLKEYWORDS=$KEYWORDS
 			for KEYWORD in $KEYWORDS; do
 				OLDTITLE=$TITLE
-#				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/" -e "s/#${KEYWORD}\([[:punct:]]\)/#${KEYWORD}\1/")
 				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/")
 				[ "$OLDTITLE" != "$TITLE" ] && ALLKEYWORDS=$(echo "$ALLKEYWORDS" | sed -e "s/${KEYWORD}//" | tr -s ' ')
 			done
