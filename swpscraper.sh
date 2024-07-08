@@ -3,8 +3,27 @@
 # source config
 . ./swpscraper.config
 
+# determine current logging timestamp
+LOGTIMESTAMP=$(date +%s)
+
+# try to create logging directory
+mkdir -p /var/log/swpscraper || true
+if [ -d /var/log/swpscraper ] ; then
+	# attempt write test
+	if touch /var/log/swpscraper/swpscraper-${LOGTIMESTAMP}.log ; then
+		exec > >(tee "/var/log/swpscraper/swpscraper-${LOGTIMESTAMP}.log") 2>&1
+	else
+		echo "WARNING: /var/log/swpscraper/ is not writable. Logging to console only."
+	fi
+fi
+
+# try to cleanup old log files
+if [ -d /var/log/swpscraper ] ; then
+	find /var/log/swpscraper -type f -name "*.log" -daystart -mtime +8 -delete || echo "Error: unable to delete old logs in /var/log/swpscraper/"
+fi
+
 # Set minimum random delay value (will add up to 60 seconds on to)
-[ -z "$TWEETMINRANDDELAY" ] && TWEETMINRANDDELAY=600
+[ -z "$TWEETMINRANDDELAY" ] && TWEETMINRANDDELAY=120
 
 # Path and file name for sqlite database
 [ -z "$DBFILE" ] && DBFILE="/run/SWPDB"
@@ -204,14 +223,23 @@ function already_tweeted() {
 	local SINGLEURL=$3
 	## I am aware that "$(echo $TITLE)" looks silly and pointless, but it doesn't work with "$TITLE", no idea why ...
 	#if (echo "$LASTTWEET" | sed  -e 's/&amp;/\&/g' | grep -q "$(echo $TITLE)") ; then
+        ORIGINAL_TWEETDATE="$(date "+%F %T")"
 	if (echo "$LASTTWEET" | grep -q "$SINGLEURL") ; then
 		# Mark as tweeted
-		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+		echo "Marked as tweeted: '${SINGLEURL}' at '${ORIGINAL_TWEETDATE}'"
+		ORIGINAL_TIMESTAMP=$(sqlite3 $DBFILE 'SELECT original_timestamp FROM swphomepage WHERE url = "'$SINGLEURL'"')
+		if [ -n "$ORIGINAL_TIMESTAMP" ]; then
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted","original_timestamp") VALUES ("'${SINGLEURL}'","true","${ORIGINAL_TIMESTAMP}")'
+		else
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted") VALUES ("'${SINGLEURL}'","true")'
+			sqlite3 $DBFILE 'UPDATE swphomepage SET original_timestamp=timestamp WHERE url = "'${SINGLEURL}'" LIMIT 1'
+		fi
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastvisibletweet")'
 		return 0
 	else
 		# Mark as not yet tweeted
-		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
+		echo "NOT Tweeted yet: '${SINGLEURL}'"
+		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted") VALUES ("'${SINGLEURL}'","false")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastfailedtweet")'
 		return 1
 	fi
@@ -259,8 +287,6 @@ function heartbeat() {
 			LASTTWEETDB=$(date -d " $(sqlite3 $DBFILE 'SELECT datetime(timestamp,"localtime") FROM state WHERE status="lastvisibletweet" ORDER BY timestamp DESC')" +%s)
 			NOW=$(date -R)
 			ONEHAGO=$(date -d "$NOW -1 hour" +%s)
-			#echo "Last Tweet Time according to DB: '$LASTTWEETDB'"
-			#echo "Time one hour ago: '$ONEHAGO'"
 			if [ $LASTTWEETDB -lt $ONEHAGO ] ; then
 				echo "Last logged regular Tweet (not counting lifesigns) was more than 1 h ago (Tweet in DB: '$(date -d "@$LASTTWEETDB" +%X)' | Now: '$(date -d "$NOW" +%X)')"
 				echo "Determining timestamp of last visible tweet ..."
@@ -513,10 +539,10 @@ function tweet_and_update() {
 
 	# this is like placing an elephant in Africa (see https://paws.kettering.edu/~jhuggins/humor/elephants.html)
 	if [ -z "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
+		echo "NOT Tweeted yet: '${SINGLEURL}'"
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","false")'
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastnewtweet")'
 	fi
-
 	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# Determine publication/modification/page generation time
 		PUBTIME=""
@@ -587,26 +613,41 @@ function tweet_and_update() {
 
 			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
-			NEWSLOCATION=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}')
-			# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-                        TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
-			if echo "$TITLE" | grep -q "#${NEWSLOCATION}" ; then
-				NEWSLOCATION=""
-			else
-				NEWSLOCATION="#${NEWSLOCATION} "
+			NEWSLOCATIONS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}'| tr -c '[:alnum:]' ' ')
+			ALLNEWSLOCATIONS=""
+			for NEWSLOCATION in $NEWSLOCATIONS; do
+				OLDTITLE=$TITLE
+				# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
+				TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
+				[ "$OLDTITLE" != "$TITLE" ] && ALLNEWSLOCATIONS=$(echo "$ALLNEWSLOCATIONS" | sed -e "s/${NEWSLOCATION}//" | tr -s ' ')
+			done
+			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS# }
+			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS% }
+			REMAININGNEWSLOCATIONS=""
+			if [ -n "$ALLNEWSLOCATIONS" ]; then
+				for NEWSLOCATION in $ALLNEWSLOCATIONS; do
+					REMAININGNEWSLOCATIONS+="#${NEWSLOCATION} "
+				done
 			fi
-
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
 			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
+			ALLKEYWORDS=$KEYWORDS
 			for KEYWORD in $KEYWORDS; do
-				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/" -e "s/#${KEYWORD} \([[:punct:]]\)/#${KEYWORD}\1/")
-				KEYWORDS=$(echo "$KEYWORDS" | sed -e "s/${KEYWORD}//" | tr -s ' ')
+				OLDTITLE=$TITLE
+#				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/" -e "s/#${KEYWORD}\([[:punct:]]\)/#${KEYWORD}\1/")
+				TITLE=$(echo "$TITLE" | sed -e "s/^${KEYWORD}/#${KEYWORD}/" -e "s/ ${KEYWORD}/ #${KEYWORD}/")
+				[ "$OLDTITLE" != "$TITLE" ] && ALLKEYWORDS=$(echo "$ALLKEYWORDS" | sed -e "s/${KEYWORD}//" | tr -s ' ')
 			done
 			# Remove leading and trailing blanks
-			KEYWORDS=${KEYWORDS# }
-			KEYWORDS=${KEYWORDS% }
-			[ -n "$KEYWORDS" ] && KEYWORDS="#${KEYWORDS} "
-			TITLE="${ADORPLUS}${NEWSLOCATION}${KEYWORDS}${PREFACE}${TITLE}"
+			ALLKEYWORDS=${ALLKEYWORDS# }
+			ALLKEYWORDS=${ALLKEYWORDS% }
+			REMAININGKEYWORDS=""
+			if [ -n "$ALLKEYWORDS" ]; then
+				for KEYWORD in $ALLKEYWORDS; do
+					REMAININGKEYWORDS+="#${KEYWORD} "
+				done
+			fi
+			TITLE="${ADORPLUS}${REMAININGNEWSLOCATIONS}${REMAININGKEYWORDS}${PREFACE}${TITLE}"
 			# Message length needs to be truncated to 280 chars without damaging the link
 			# required chars for link: 23 chars + 1 blank  (current shortlink size enforced by twitter)
 			MAXTITLELENGTH=$((280-23-1))
@@ -618,7 +659,6 @@ function tweet_and_update() {
 
 			# compose message
 			MESSAGE="${TITLE}${SINGLEURL}"
-
 			if [ $BACKOFF -lt 1 ]; then
 				if [ $BACKOFF -lt 0 ]; then
 					echo "We're in postponed tweet checking mode, so let's check if the tweet '$TITLE' has shown up since."
@@ -646,6 +686,7 @@ function tweet_and_update() {
 						if [ "$TWEETID" = "ETOOFAST" ]; then
 							# This should never happen, as our tweepy script is set to retry automatically ...
 							RANDRETRYDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
+							echo "Tweeting too fast, waiting $RANDRETRYDELAY ..."
 							sleep $RANDRETRYDELAY
 						fi
 						TRYAGAIN=$((TRYAGAIN+1))
@@ -688,6 +729,7 @@ function tweet_and_update() {
 						else
 							# This is cheating, as already_tweeted checks if the content of the third parameter is contained in the first
 							already_tweeted "$SINGLEURL" "$TITLE" "$SINGLEURL"
+							sqlite3 $DBFILE 'UPDATE swphomepage SET original_timestamp=timestamp WHERE url = "'${SINGLEURL}'" AND original_timestamp IS NULL LIMIT 1'
 							echo -e " - Tweeted."
 							TWEETEDLINK=1
 						fi
@@ -705,8 +747,13 @@ function tweet_and_update() {
 			echo "priming URL table with '$SINGLEURL'"
 			sleep 1 # this is so every entry has a unique timestamp
 			# Add entry to table
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted') VALUES ("'$SINGLEURL'","true")'
+			ORIGINAL_TWEETDATE="$(date "+%F %T")"
+			if [ -z "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'"')" ]; then
+				sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted") VALUES ("'${SINGLEURL}'","true")'
+			fi
+			sqlite3 $DBFILE 'UPDATE swphomepage SET original_timestamp=timestamp WHERE url = "'${SINGLEURL}'" LIMIT 1'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastprimedtweet")'
+			echo "Primed: '${SINGLEURL}' at '${ORIGINAL_TWEETDATE}'"
 		fi
 
 	else
@@ -714,7 +761,13 @@ function tweet_and_update() {
 		TWEETSTATE="$(sqlite3 $DBFILE 'SELECT already_tweeted FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		REASON="$(sqlite3 $DBFILE 'SELECT reason FROM swphomepage WHERE url="'$SINGLEURL'"')"
 		sleep 1 # make sure timestamps are always at least 1s apart
-		sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage (url,already_tweeted,reason) VALUES ("'$SINGLEURL'","'$TWEETSTATE'","'$REASON'")'
+		ORIGINAL_TIMESTAMP=$(sqlite3 $DBFILE 'SELECT original_timestamp FROM swphomepage WHERE url = "'$SINGLEURL'"')
+		if [ -n "$ORIGINAL_TIMESTAMP" ]; then
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted","original_timestamp") VALUES ("'${SINGLEURL}'","true","'"${ORIGINAL_TIMESTAMP}"'")'
+		else
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted") VALUES ("'${SINGLEURL}'","true")'
+			# don't! - sqlite3 $DBFILE 'UPDATE swphomepage SET original_timestamp=timestamp WHERE url = "'${SINGLEURL}'" LIMIT 1'
+		fi
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
 	fi
 
@@ -732,8 +785,19 @@ function tweet_and_update() {
 
 # check if sqlite DB exists; if not, create it
 if ! [ -f $DBFILE ] || [ -z "$(sqlite3 $DBFILE '.tables swphomepage')" ] ; then
-	sqlite3 $DBFILE 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted)'
+	sqlite3 $DBFILE 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted, original_timestamp DATETIME)'
 fi
+
+if [ -z "$(sqlite3 $DBFILE 'PRAGMA table_info(swphomepage)' | awk -F'|' '$2=="original_timestamp" {print $2}')" ]; then
+	echo "Detected old-style database table layout. Attempting to alter table."
+	if sqlite3 $DBFILE 'ALTER TABLE swphomepage ADD original_timestamp DATETIME' && sqlite3 $DBFILE 'UPDATE swphomepage set original_timestamp=timestamp'; then
+		echo "Successfully altered table."
+	else
+		echo "Failed to alter table."
+		exit 1
+	fi
+fi
+
 [ -z "$(sqlite3 $DBFILE '.tables state')" ] && sqlite3 $DBFILE 'CREATE TABLE state (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, status data_type PRIMARY KEY)'
 [ -z "$(sqlite3 $DBFILE '.tables externalurls')" ] && sqlite3 $DBFILE 'CREATE TABLE externalurls (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, externalurl data_type PRIMARY KEY)'
 
@@ -749,20 +813,39 @@ sqlite3 $DBFILE 'delete from externalurls where timestamp < datetime("now","-'${
 # reset lifesigncheck
 sqlite3 $DBFILE 'DELETE FROM state WHERE status="lastlifesigncheck" LIMIT 1'
 
+# new sleeptime calculation
+TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")')
+TWEETCAPAMOUNT="$(sqlite3 /run/SWPDB 'SELECT original_timestamp FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours") ORDER BY original_timestamp ASC LIMIT ('${MAXTWEETSPERDAY}'+1)')"
+if [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; then
+	echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
+	TWEETCAPTIME=$(date -d "$(echo -e "$TWEETCAPAMOUNT" | tail -n 1 | tr -d '\n') + 1 day" +%s) 
+	echo "Tweetcaptime: $(date -d @${TWEETCAPTIME})."
+	CURRENTTIMEANDDATE=$(date +%s)
+	while [ $TWEETCAPTIME -gt $CURRENTTIMEANDDATE ]; do
+		echo "We need to wait until at least $(date -d @${TWEETCAPTIME})."
+		SLEEPTIME=$((TWEETCAPTIME - $CURRENTTIMEANDDATE + 10))
+		echo "Sleeping $SLEEPTIME seconds (until $(date -d "+ $SLEEPTIME seconds")) and trying again."
+		sleep $SLEEPTIME
+		CURRENTTIMEANDDATE=$(date +%s)
+	done
+	fi
+
 TWEETSPERDAY=99999999999
-while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
-	TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours")')
+#while [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; do
+while false; do
+	TWEETSPERDAY=$(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")')
 	if [ $TWEETSPERDAY -gt $MAXTWEETSPERDAY ]; then
 		DAYLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
 		if [ $DAYLIMITDIFF -lt 2 ]; then
 			DAYLIMITDIFF=2
 		fi
-		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-24 hours") ORDER BY timestamp DESC LIMIT '$DAYLIMITDIFF)
+		OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT original_timestamp FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours") ORDER BY original_timestamp DESC LIMIT '$DAYLIMITDIFF)
+		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 		YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 		OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 		SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
 		echo "Our 24h tweet limit is: $MAXTWEETSPERDAY. Current amount of tweets within the last 24 hours: $TWEETSPERDAY"
-		echo "Sleeping $SLEEPTIME seconds ($(date -d @$SLEEPTIME +%T | awk -F ':' '{print $1 "h " $2 "m " $3 "s"}')) and trying again."
+		echo "Sleeping $SLEEPTIME seconds and trying again."
 		sleep $SLEEPTIME
 	fi
 done
@@ -770,13 +853,13 @@ done
 if [ $TWEETBACKLOGINDAYS -lt 31 ]; then
 	TWEETSPERMONTH=999999999999999999
 	while [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; do
-		TWEETSPERMONTH=$(sqlite3 $DBFILE 'SELECT count(timestamp) FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days")')
+		TWEETSPERMONTH=$(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-30 days")')
 		if [ $TWEETSPERMONTH -gt $MAXTWEETSPERMONTH ]; then
 			MONTHLIMITDIFF=$((TWEETSPERDAY-MAXTWEETSPERDAY))
 			if [ $MONTHLIMITDIFF -lt 2 ]; then
 				MONTHLIMITDIFF=2
 			fi
-			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT timestamp FROM swphomepage where already_tweeted = "true" AND timestamp >= date("now", "-30 days") ORDER BY timestamp DESC LIMIT '$MONTHLIMITDIFF)
+			OLDESTTIMESTAMPS=$(sqlite3 /run/SWPDB 'SELECT original_timestamp FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-30 days") ORDER BY original_timestamp DESC LIMIT '$MONTHLIMITDIFF)
 			YOUNGERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | head -n 1)" +%s)
 			OLDERTIMESTAMP=$(date -d "$(echo "$OLDESTTIMESTAMPS" | tail -n 1)" +%s)
 			SLEEPTIME=$((YOUNGERTIMESTAMP-OLDERTIMESTAMP))
@@ -796,10 +879,19 @@ if [ -z "$(sqlite3 $DBFILE 'SELECT * FROM swphomepage ORDER BY timestamp DESC LI
 	PRIMETABLE='yes'
 else
 	echo "Checking for postponed tweets ..."
-	URLLIST=$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY timestamp ASC')
+	URLLIST=$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE already_tweeted ="false" ORDER BY original_timestamp ASC')
 	BACKOFF=-1
 	for SINGLEURL in $URLLIST; do
-		tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" || BACKOFF=1
+		if [ $(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")') -gt $MAXTWEETSPERDAY ]; then
+			echo "Daily Tweet limit reached. Not tweeting, backing off."
+			BACKOFF=1
+			break
+		elif ! tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF"; then
+			BACKOFF=1
+			break
+		else
+			echo "Amount of tweets in last 24h: $(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")')"
+		fi
 	done
 	echo "Done checking for postponed tweets."
 
@@ -817,7 +909,7 @@ fi
 # if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://nitter.net/'"${BOTNAME/@}"'/search?f=tweets&q='"${BOTNAME/@}"'&since=&until=&near=&src=typd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
 # this doesn't work any more as twitter is blocking anonymous (non-logged-in) searches and also requires javascript, even on mobile
 # if [ $(timeout 60 wget -q --post-data="" -O - --referer 'https://twitter.com/search?f=tweets&vertical=default&q=from%3A%40'"${BOTNAME/@}"'&src=typd' 'https://mobile.twitter.com/i/nojs_router?path=%2Fsearch%3Ff%3Dtweets%26vertical%3Ddefault%26q%3Dfrom%253A%2540'"${BOTNAME/@}"'%26src%3Dtypd' | grep -i '/'${BOTNAME/@}'/' -c) -lt 1 ] ; then
-# 	echo "No search results - have we been shadowbanned?"
+ 	echo "No search results - have we been shadowbanned?"
 # fi
 
 
@@ -879,14 +971,27 @@ else
 fi
 
 BACKOFF=0
-for SINGLEURL in $URLLIST; do
 
+
+if [ -z "$URLLIST" ] ; then
+	echo "URLLIST is empty :-/"
+	echo "USERAGENT was: '$USERAGENT'"
+fi
+
+for SINGLEURL in $URLLIST; do
 	# IMPORTANT: String must be filtered for valid chars to block SQL injection and shell injection
 	SINGLEURL=$(echo $SINGLEURL | tr -d -c 'a-zA-Z0-9_/.:-') # SWP only uses this character subset in their URLs
 
 	if [ -n "$SINGLEURL" ] ; then
-		if ! tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" "$PRIMETABLE" ; then
+		if [ $(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")') -gt $MAXTWEETSPERDAY ]; then
+			echo "Daily Tweet limit reached. Not tweeting, backing off."
 			BACKOFF=1
+			break
+		elif ! tweet_and_update "$SINGLEURL" "$USERAGENT" "$BACKOFF" "$PRIMETABLE" ; then
+			BACKOFF=1
+			break
+		else
+			echo "Amount of tweets in last 24h: $(sqlite3 $DBFILE 'SELECT count(original_timestamp) FROM swphomepage where already_tweeted = "true" AND original_timestamp >= datetime("now", "-24 hours")')"
 		fi
 	else
 		# does for even start when $URLLIST is empty?
@@ -895,8 +1000,9 @@ for SINGLEURL in $URLLIST; do
 done
 
 if [ $BACKOFF -eq 1 ]; then
-	echo "Backed off due to errors."
+	echo "Backed off due to errors, adding 900s additional sleeptime."
 	# $(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')
+	sleep 900
 	exit 1
 else
 #	heartbeat "$USERAGENT" "$PRIMETABLE"
