@@ -615,24 +615,34 @@ function tweet_and_update() {
 
 			# IMPORTANT: Update times should be randomized within a certain time interval (to work around twitter's bot/abuse detection and API rate limiting)
 			RANDDELAY="$[ ( $RANDOM % 61 )  + $TWEETMINRANDDELAY ]s"
-			NEWSLOCATIONS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}'| tr -c '[:alnum:]' ' ')
-			ALLNEWSLOCATIONS=""
-			for NEWSLOCATION in $NEWSLOCATIONS; do
-				OLDTITLE=$TITLE
-				# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-				TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
-				[ "$OLDTITLE" != "$TITLE" ] && ALLNEWSLOCATIONS=$(echo "$ALLNEWSLOCATIONS" | sed -e "s/${NEWSLOCATION}//" | tr -s ' ')
-			done
-			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS# }
-			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS% }
-			REMAININGNEWSLOCATIONS=""
-			if [ -n "$ALLNEWSLOCATIONS" ]; then
-				for NEWSLOCATION in $ALLNEWSLOCATIONS; do
-					REMAININGNEWSLOCATIONS+="#${NEWSLOCATION} "
-				done
-			fi
+
+# disabled, as NEWSLOCATIONS are no longer a separate keyword
+#			NEWSLOCATIONS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:location\"" { print $3}' | tr '"' '\n' | awk -F ':' '$1=="city" {print $2}'| tr -c '[:alnum:]' ' ')
+#			ALLNEWSLOCATIONS=""
+#			for NEWSLOCATION in $NEWSLOCATIONS; do
+#				OLDTITLE=$TITLE
+#				# If Location is part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
+#				TITLE=$(echo "$TITLE" | sed -e "s/^${NEWSLOCATION}/#${NEWSLOCATION}/" -e "s/ ${NEWSLOCATION}/ #${NEWSLOCATION}/" -e "s/#${NEWSLOCATION} \([[:punct:]]\)/#${NEWSLOCATION}\1/")
+#				[ "$OLDTITLE" != "$TITLE" ] && ALLNEWSLOCATIONS=$(echo "$ALLNEWSLOCATIONS" | sed -e "s/${NEWSLOCATION}//" | tr -s ' ')
+#			done
+#			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS# }
+#			ALLNEWSLOCATIONS=${ALLNEWSLOCATIONS% }
+#			REMAININGNEWSLOCATIONS=""
+#			if [ -n "$ALLNEWSLOCATIONS" ]; then
+#				for NEWSLOCATION in $ALLNEWSLOCATIONS; do
+#					REMAININGNEWSLOCATIONS+="#${NEWSLOCATION} "
+#				done
+#			fi
+# disabled, as NEWSLOCATIONS are no longer a separate keyword
+
 			# If a keyword ist already part of the Tweet, turn the existing one into a hashtag, instead of adding a separate one
-			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
+
+			# This no longer works since SWP ditched InterRed
+			# KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"article:tag\"" { print $3}' | tr '"' '\n' | grep "^[[:upper:]]" | grep -v ":$" | tr '\n' ' ')
+			# Keywords with spaces are probably author or photographer names, skip them
+			# remove dashes, as they break hashtags
+			# only list the first five keywords
+			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="name=\"article:tag\"" { print $3 " " $4}' | tr '"' '\n' | grep -v " " | grep "^[[:upper:]]" | grep -v ":$" | sed -e 's/-//' | head -n 5 | tr '\n' ' ')
 			ALLKEYWORDS=$KEYWORDS
 			for KEYWORD in $KEYWORDS; do
 				OLDTITLE=$TITLE
