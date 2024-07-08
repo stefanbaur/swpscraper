@@ -584,7 +584,9 @@ function tweet_and_update() {
 	# we need this seemingly identical if block because already_tweeted might get set (to "skip") in the block above, so we should only work on what is left after those checks above
 	if [ -n "$(sqlite3 $DBFILE 'SELECT url FROM swphomepage WHERE url = "'$SINGLEURL'" AND already_tweeted = "false"')" ]; then
 		# Add SWPPlus Hashtag when required
-		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' ; then
+		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="lp:paywall" content="1"/>' || \
+		   echo -e "$SCRAPEDPAGE" | grep -q 'data-freemium="plus"' || \
+		   echo -e "$SCRAPEDPAGE" | grep -q '<div id="paywall-container" class="swpPayWall ms-paywall">' ; then
 			ADORPLUS="#SWPPlus "
 			# Add SWPPlus Hashtag when required (new, beta detection)
 		elif echo -e "$SCRAPEDPAGE" | grep -q '<svg class="icon p-1 paywall">' ; then
