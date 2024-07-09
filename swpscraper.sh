@@ -623,7 +623,7 @@ function tweet_and_update() {
 			# Keywords with spaces are probably author or photographer names, skip them
 			# remove dashes, as they break hashtags
 			# only list the first five keywords
-			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="name=\"article:tag\"" { print $3 " " $4}' | tr '"' '\n' | grep -v " " | grep "^[[:upper:]]" | grep -v ":$" | sed -e 's/-//' | head -n 5 | tr '\n' ' ')
+			KEYWORDS=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="name=\"article:tag\"" { print $3 " " $4}' | tr '"' '\n' | grep -v " " | grep "^[[:upper:]]" | grep -v ":$" | sed -e 's/-//g' | head -n 5 | tr '\n' ' ')
 			ALLKEYWORDS=$KEYWORDS
 			for KEYWORD in $KEYWORDS; do
 				OLDTITLE=$TITLE
