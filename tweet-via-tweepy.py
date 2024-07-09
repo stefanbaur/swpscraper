@@ -9,7 +9,8 @@ try:
     client = tweepy.Client(
         consumer_key=credentials["consumer_key"], consumer_secret=credentials["consumer_secret"],
         access_token=credentials["access_token"], access_token_secret=credentials["access_token_secret"],
-        wait_on_rate_limit=True
+        wait_on_rate_limit=False
+        #wait_on_rate_limit=True
     )
 
     response = client.create_tweet(
