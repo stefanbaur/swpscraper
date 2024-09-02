@@ -32,7 +32,8 @@ fi
 [ -z "$TEMPDIR" ] && TEMPDIR="/tmp/"
 
 # Path, file name, and parameters for command line Twitter client
-[ -z "$TWITTER" ] && TWITTER="../tweepy/tweet-via-tweepy.py"
+#[ -z "$TWITTER" ] && TWITTER="../tweepy/tweet-via-tweepy.py"
+[ -z "$TWITTER" ] && TWITTER="../tweepy/tweet-media-via-tweepy.py"
 
 # Page to be scraped:
 [ -z "$BASEURL" ] && BASEURL="https://www.swp.de"
@@ -405,7 +406,7 @@ function heartbeat() {
 								fi
 							fi
 							;;
-						2)	# let's try unrise and sunset
+						2)	# let's try sunrise and sunset
 							if [ -z "$LASTSUNRISESUNSETEPOCH" ] || [ $LASTSUNRISESUNSETEPOCH -lt $TODAYEPOCH ]; then
 									LIFESIGN="$ONEBOT $ONENOISE1 $ONEBOT\n$SUNRISESUNSETMSG: $(date -d "$SUNRISE" +%R)/$(date -d "$SUNSET" +%R)\n$ONEBOT $ONENOISE2 $ONEBOT"
 									sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastsunrisesunsettweet")'
@@ -601,11 +602,16 @@ function tweet_and_update() {
 			ADORPLUS=""
 		fi
 
+		# Try to fetch a headline image for the tweet
+		HEADLINEIMAGE=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="name=\"og:image\"" { print $3 }' | head -n 1 | awk -F'["|?]' '{ print $2}')
+		[ -n "$HEADLINEIMAGE" ] && HEADLINEIMAGE=" IMAGEURL:$HEADLINEIMAGE"
+
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
 		# still needs support for accents on letters and similar foo
 		# never (unless you want hell to break loose) allow \"'$
 		# allowing € leads to allowing UTF-8 in general, it seems? At least tr doesn't see a difference between € and –, which is dumb
 		# a "." preceded and followed by at least two non-whitespace characters needs a whitespace inserted right after it, or else twitter might try to turn it into an URL
+		# TODO this is false if the two non-whitespace characters are numeric, so needs an exception
 		TITLE=$(echo "$SCRAPEDPAGE" | grep -A10 title | tr '\n' ' ' | tr -s ' ' | sed -e 's/^.*<title>\([^|]*\)\w*|.*$/\1/' -e 's/–/-/' -e 's/&quot;\(.*\)&quot;/„\1“/g' -e 's/&amp;/\&/g' -e 's#[^a-zäöüA-ZÄÖÜ0-9ß%€„“ _/.,!?&():=-]# #g' -e 's/\(\S\S\)\.\(\S\S\)/\1. \2/g')
 		if [ -n "$TITLE" ] ; then
 			TITLE="$(echo "$TITLE " | tr -s ' ')" # make sure there is exactly one trailing blank if $TITLE wasn't empty
@@ -650,7 +656,7 @@ function tweet_and_update() {
 			fi
 
 			# compose message
-			MESSAGE="${TITLE}${SINGLEURL}"
+			MESSAGE="${TITLE}${SINGLEURL}${HEADLINEIMAGE}"
 			if [ $BACKOFF -lt 1 ]; then
 				if [ $BACKOFF -lt 0 ]; then
 					echo "We're in postponed tweet checking mode, so let's check if the tweet '$TITLE' has shown up since."
@@ -681,6 +687,8 @@ function tweet_and_update() {
 							echo "Tweeting too fast, waiting $RANDRETRYDELAY ..."
 							sleep $RANDRETRYDELAY
 						fi
+						# Reset MESSAGE to skip HEADLINEIMAGE for second try
+						MESSAGE="${TITLE}${SINGLEURL}"
 						TRYAGAIN=$((TRYAGAIN+1))
 					done
 					RANDCHECKDELAY="$[ ( $RANDOM % 61 )  + 120 ]s"
@@ -755,9 +763,9 @@ function tweet_and_update() {
 		sleep 1 # make sure timestamps are always at least 1s apart
 		ORIGINAL_TIMESTAMP=$(sqlite3 $DBFILE 'SELECT original_timestamp FROM swphomepage WHERE url = "'$SINGLEURL'"')
 		if [ -n "$ORIGINAL_TIMESTAMP" ]; then
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted","original_timestamp") VALUES ("'${SINGLEURL}'","true","'"${ORIGINAL_TIMESTAMP}"'")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted","original_timestamp","imageurl") VALUES ("'${SINGLEURL}'","true","'"${ORIGINAL_TIMESTAMP}"'","'"${HEADLINEIMAGE}"'")'
 		else
-			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted") VALUES ("'${SINGLEURL}'","true")'
+			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ("url","already_tweeted","imageurl") VALUES ("'${SINGLEURL}'","true","'"${HEADLINEIMAGE}"'")'
 			# don't! - sqlite3 $DBFILE 'UPDATE swphomepage SET original_timestamp=timestamp WHERE url = "'${SINGLEURL}'" LIMIT 1'
 		fi
 		sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastupdatedtweet")'
@@ -777,12 +785,22 @@ function tweet_and_update() {
 
 # check if sqlite DB exists; if not, create it
 if ! [ -f $DBFILE ] || [ -z "$(sqlite3 $DBFILE '.tables swphomepage')" ] ; then
-	sqlite3 $DBFILE 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted, original_timestamp DATETIME)'
+	sqlite3 $DBFILE 'CREATE TABLE swphomepage (timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, url data_type PRIMARY KEY, already_tweeted, original_timestamp DATETIME,imageurl)'
 fi
 
 if [ -z "$(sqlite3 $DBFILE 'PRAGMA table_info(swphomepage)' | awk -F'|' '$2=="original_timestamp" {print $2}')" ]; then
-	echo "Detected old-style database table layout. Attempting to alter table."
+	echo "Detected old-style database table layout (no original_timestamp column). Attempting to alter table."
 	if sqlite3 $DBFILE 'ALTER TABLE swphomepage ADD original_timestamp DATETIME' && sqlite3 $DBFILE 'UPDATE swphomepage set original_timestamp=timestamp'; then
+		echo "Successfully altered table."
+	else
+		echo "Failed to alter table."
+		exit 1
+	fi
+fi
+
+if [ -z "$(sqlite3 $DBFILE 'PRAGMA table_info(swphomepage)' | awk -F'|' '$2=="imageurl" {print $2}')" ]; then
+	echo "Detected old-style database table layout (no imageurl column). Attempting to alter table."
+	if sqlite3 $DBFILE 'ALTER TABLE swphomepage ADD imageurl'; then
 		echo "Successfully altered table."
 	else
 		echo "Failed to alter table."
@@ -992,7 +1010,7 @@ for SINGLEURL in $URLLIST; do
 done
 
 if [ $BACKOFF -eq 1 ]; then
-	echo "Backed off due to errors, adding 900s additional sleeptime."
+	echo "Backed off due to errors, adding 900s additional sleeptime at '$(date)'."
 	# $(echo -e '\U0001f916')"*krrrrk* Sand im Twittergetriebe *krrrrk*"$(echo -e '\U0001f916')
 	sleep 900
 	exit 1
