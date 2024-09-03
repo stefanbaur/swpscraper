@@ -550,10 +550,9 @@ function tweet_and_update() {
 		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta http-equiv="last-modified" content="' | sed -e 's/^.*<meta http-equiv="last-modified" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
 		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta property="article:published_time" content="' | sed -e 's/^.*<meta property="article:published_time" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
 		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<meta property="article:modified_time" content="' | sed -e 's/^.*<meta property="article:modified_time" content="\([^"]*\)".*>.*$/\1/g')" +%s)\n"
-		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '"datePublished": *"' | sed -e 's/^.*"datePublished": *"\([^"]*\)".*$/\1/g')" +%s)\n"
-		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '"dateModified": *"' | sed -e 's/^.*"dateModified": *"\([^"]*\)".*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep ',"datePublished": *"' | sed -e 's/^.*,"datePublished": *"\([^"]*\)".*$/\1/g')" +%s)\n"
+		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep ',"dateModified": *"' | sed -e 's/^.*,"dateModified": *"\([^"]*\)".*$/\1/g')" +%s)\n"
 		PUBTIME+="$(date -d "$(echo -e "$SCRAPEDPAGE" | grep '<!-- Generiert: ' | sed -e 's/^.*<!-- Generiert: \(.*\) -->.*$/\1/g')" +%s)\n"
-
 		# Some more rules on when not to tweet:
 		# Page contains '<meta property="og:type" content="video">' - this is a video-only page
 		if echo -e "$SCRAPEDPAGE" | grep -q '<meta property="og:type" content="video">' ; then
@@ -580,6 +579,9 @@ function tweet_and_update() {
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO swphomepage ('url','already_tweeted','reason') VALUES ("'$SINGLEURL'","skip","oldnews")'
 			sqlite3 $DBFILE 'INSERT OR REPLACE INTO state ('status') VALUES ("lastskippedtweet")'
 		fi
+	echo -n "Timestamp (publishing date): "
+	echo -en "$PUBTIME" | sort -un | tail -n 1 | xargs -I XXX date -d @XXX
+	echo -n " "
 	fi
 
 	# we need this seemingly identical if block because already_tweeted might get set (to "skip") in the block above, so we should only work on what is left after those checks above
