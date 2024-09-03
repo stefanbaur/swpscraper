@@ -603,7 +603,7 @@ function tweet_and_update() {
 		fi
 
 		# Try to fetch a headline image for the tweet
-		HEADLINEIMAGE=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="name=\"og:image\"" { print $3 }' | head -n 1 | awk -F'["|?]' '{ print $2}')
+		HEADLINEIMAGE=$(echo "$SCRAPEDPAGE" | sed -e 's/</\n</g' -e 's/>/>\n/g' | awk '$2=="property=\"og:image\"" || $2=="name=\"og:image\"" { print $3 }' | head -n 1 | awk -F'["|?]' '{ print $2}')
 		[ -n "$HEADLINEIMAGE" ] && HEADLINEIMAGE=" IMAGEURL:$HEADLINEIMAGE"
 
 		# TODO IMPORTANT TITLE needs to be sanitized as well - open to suggestions on how to improve the whitelisting here ...
